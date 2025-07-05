@@ -104,16 +104,53 @@
 }
 
 @media print {
+  @page {
+    margin: 0.75in;
+  }
+
   body {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    background-color: #fff !important;
   }
   .no-print, .screen-only {
     display: none !important;
   }
+
+  /* == Worksheet Styles == */
   .print-only-worksheet {
     display: block !important;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 12pt;
+    color: #000;
   }
+  .print-only-worksheet h1 {
+    font-size: 20pt;
+    font-weight: bold;
+    margin-bottom: 2rem;
+  }
+  .print-only-worksheet .worksheet-header {
+    font-size: 11pt;
+    margin-bottom: 2rem;
+  }
+  .print-only-worksheet h2 {
+    font-size: 14pt;
+    font-weight: bold;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #000;
+    padding-bottom: 0.25rem;
+  }
+  .print-only-worksheet ol {
+    padding-left: 1.5rem;
+    list-style: decimal;
+  }
+  .print-only-worksheet li {
+    padding-bottom: 0.75rem;
+  }
+
+
+  /* == Flashcard Styles == */
   .flashcard-print-container {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
@@ -136,7 +173,6 @@
   .flashcard-print-item .backface-hidden {
     backface-visibility: visible !important;
   }
-  /* This is a trick: We print both front and back on the page */
   .flashcard-print-item > div {
     display: block !important;
   }

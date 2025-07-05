@@ -63,10 +63,15 @@ export default function ScannerPage() {
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!user) {
-        toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to use this feature." });
-        return;
+    // No AI calls in demo mode for this tool, as it requires a key.
+    if (isDemoMode && !process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
+      toast({
+        title: "Demo Mode",
+        description: "This feature is disabled in demo mode without a valid Gemini API key.",
+      });
+      return;
     }
+    
     setIsLoading(true);
     setResults(null);
     try {
@@ -79,7 +84,7 @@ export default function ScannerPage() {
       const result = await textbookScanner(input);
       setResults(result);
 
-      if (!isDemoMode && storage && db) {
+      if (user && !isDemoMode && storage && db) {
         const storageRef = ref(storage, `textbookUploads/${user.uid}/${Date.now()}-${file.name}`);
         await uploadBytes(storageRef, file);
         const imageUrl = await getDownloadURL(storageRef);
@@ -187,31 +192,31 @@ export default function ScannerPage() {
         {/* Printable Worksheet - only visible for printing */}
         {results && (
             <div className="print-only-worksheet">
-                <div className="text-center mb-8">
-                    <h1 className="text-2xl font-bold">Worksheet</h1>
-                    <p className="text-sm mt-4">Name: _________________________ &nbsp;&nbsp;&nbsp;&nbsp; Date: _________________________</p>
+                <div className="text-center">
+                    <h1>Worksheet</h1>
+                    <p className="worksheet-header">Name: _________________________ &nbsp;&nbsp;&nbsp;&nbsp; Date: _________________________</p>
                 </div>
                 <div className="space-y-8">
                     {results.mcqQuestions.length > 0 && (
                         <div>
-                            <h2 className="text-lg font-bold border-b pb-2 mb-3">A. Multiple Choice Questions</h2>
-                            <ol className="list-decimal list-outside space-y-3 pl-5">
+                            <h2>A. Multiple Choice Questions</h2>
+                            <ol>
                                 {results.mcqQuestions.map((q, i) => <li key={`mcq-print-${i}`}>{q}</li>)}
                             </ol>
                         </div>
                     )}
                     {results.fillInTheBlankQuestions.length > 0 && (
                         <div>
-                            <h2 className="text-lg font-bold border-b pb-2 mb-3">B. Fill in the Blanks</h2>
-                            <ol className="list-decimal list-outside space-y-3 pl-5">
+                            <h2>B. Fill in the Blanks</h2>
+                            <ol>
                                 {results.fillInTheBlankQuestions.map((q, i) => <li key={`fib-print-${i}`}>{q}</li>)}
                             </ol>
                         </div>
                     )}
                     {results.matchTheColumnQuestions.length > 0 && (
                         <div>
-                            <h2 className="text-lg font-bold border-b pb-2 mb-3">C. Match the Columns</h2>
-                             <ol className="list-decimal list-outside space-y-3 pl-5">
+                            <h2>C. Match the Columns</h2>
+                             <ol>
                                   {results.matchTheColumnQuestions.map((q, i) => <li key={`match-print-${i}`}>{q}</li>)}
                               </ol>
                         </div>
