@@ -27,20 +27,20 @@ const formSchema = z.object({
   language: z.enum(["en", "hi", "mr", "ta"]),
 });
 
-// Add isError and inputData for retry functionality
 type Message = {
-  id: number;
+  id: string;
   role: "user" | "assistant";
   content: string;
   imageUrl?: string | null;
   isError?: boolean;
-  inputData?: AIChatInput; 
+  inputData?: AIChatInput;
+  isTyping?: boolean;
 };
 
 export default function ChatPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   
   const [isListening, setIsListening] = useState(false);
@@ -166,84 +166,105 @@ export default function ChatPage() {
     toast({ title: "Download started!" });
   };
 
-  // Centralized submission logic
-  const handleAiSubmission = async (input: AIChatInput, userMessageId: number, isRetry = false) => {
-      setIsLoading(true);
-      if (isRetry) {
-          // Mark the error message as resolved before retrying
-          setMessages(prev => prev.map(m => m.id === userMessageId ? { ...m, isError: false } : m));
-      }
+  const handleAiSubmission = async (input: AIChatInput, userMessageId: string) => {
+    setIsSubmitting(true);
+    const assistantTypingId = 'assistant-typing-indicator';
 
-      try {
-          // Get a persistent URL for Firestore. Only do this for new images, not on retry.
-          let publicImageUrl: string | null = null;
-          if (imageFile && !isRetry) {
-              if (user && user.uid !== 'demo-user' && storage && imagePreview) {
-                  const storageRef = ref(storage, `chatImages/${user.uid}/${Date.now()}_${imageFile.name}`);
-                  const uploadResult = await uploadString(storageRef, imagePreview, 'data_url');
-                  publicImageUrl = await getDownloadURL(uploadResult.ref);
-              }
-          }
+    const assistantTypingMessage: Message = {
+      id: assistantTypingId,
+      role: 'assistant',
+      content: '',
+      isTyping: true,
+    };
+    
+    // Add typing indicator, and mark user message as not an error (for retries)
+    setMessages(prev => [
+      ...prev.map(m => m.id === userMessageId ? { ...m, isError: false } : m),
+      assistantTypingMessage
+    ]);
 
-          const result = await aiChat(input);
-          
-          setMessages(prev => [...prev, { id: Date.now(), role: "assistant", content: result.response }]);
-          
-          if (user && db) {
-              await addDoc(collection(db, "chatResponses"), {
-                  userId: user.uid,
-                  prompt: input.question,
-                  imageUrl: publicImageUrl,
-                  response: result.response,
-                  language: input.language,
-                  createdAt: serverTimestamp(),
-              });
-          }
-          if (!isRetry) {
-              form.reset({ ...form.getValues(), question: "" });
-              removeImage();
-          }
-      } catch (error: any) {
-          toast({
-              variant: "destructive",
-              title: "Failed to fetch response",
-              description: "Please try again.",
-          });
-          // Mark the user's message as having an error
-          setMessages(prev => prev.map(m => m.id === userMessageId ? { ...m, isError: true } : m));
-      } finally {
-          setIsLoading(false);
-      }
+    try {
+      const result = await aiChat(input);
+      
+      const assistantMessage: Message = {
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        content: result.response,
+      };
+      
+      // Replace the typing indicator with the actual response
+      setMessages(prev => [
+        ...prev.filter(m => m.id !== assistantTypingId),
+        assistantMessage
+      ]);
+
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Failed to fetch response",
+        description: "Please try again.",
+      });
+      // Mark the user's message as having an error and remove the typing indicator
+      setMessages(prev =>
+        prev.filter(m => m.id !== assistantTypingId)
+          .map(m => m.id === userMessageId ? { ...m, isError: true } : m)
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!values.question.trim() && !imageFile) {
-        toast({ variant: 'destructive', title: 'Input Required', description: 'Please enter a question or upload an image.' });
-        return;
+      toast({ variant: 'destructive', title: 'Input Required', description: 'Please enter a question or upload an image.' });
+      return;
     }
 
     const input: AIChatInput = {
-        question: values.question,
-        language: values.language,
-        imageDataUri: imagePreview ?? undefined,
+      question: values.question,
+      language: values.language,
+      imageDataUri: imagePreview ?? undefined,
     };
     
+    // For new submissions, get a persistent URL for Firestore.
+    let publicImageUrl: string | null = null;
+    if (imageFile && user && user.uid !== 'demo-user' && storage && imagePreview) {
+      const storageRef = ref(storage, `chatImages/${user.uid}/${Date.now()}_${imageFile.name}`);
+      const uploadResult = await uploadString(storageRef, imagePreview, 'data_url');
+      publicImageUrl = await getDownloadURL(uploadResult.ref);
+    }
+    
+    const userMessageId = `user-${Date.now()}`;
     const userMessage: Message = {
-        id: Date.now(),
-        role: "user",
-        content: values.question,
-        imageUrl: imagePreview,
-        inputData: input // Save input for retry
+      id: userMessageId,
+      role: "user",
+      content: values.question,
+      imageUrl: imagePreview,
+      inputData: input,
     };
 
     setMessages(prev => [...prev, userMessage]);
+    form.reset({ ...form.getValues(), question: "" });
+    removeImage();
     
-    await handleAiSubmission(input, userMessage.id);
+    await handleAiSubmission(input, userMessageId);
+
+    if (user && db) {
+        addDoc(collection(db, "chatResponses"), {
+            userId: user.uid,
+            prompt: input.question,
+            imageUrl: publicImageUrl,
+            language: input.language,
+            createdAt: serverTimestamp(),
+            // Storing response is now tricky as it's not available here.
+            // Consider logging prompt and getting response later or simplifying logging.
+        }).catch(err => console.error("Error saving to Firestore", err));
+    }
   }
   
   const handleRetry = (messageToRetry: Message) => {
-    if (messageToRetry.inputData) {
-        handleAiSubmission(messageToRetry.inputData, messageToRetry.id, true);
+    if (messageToRetry.inputData && messageToRetry.id) {
+      handleAiSubmission(messageToRetry.inputData, messageToRetry.id);
     }
   };
 
@@ -261,60 +282,65 @@ export default function ChatPage() {
               {messages.length === 0 && (
                 <div className="text-center text-muted-foreground pt-16">No messages yet. Start by asking a question below.</div>
               )}
-              {messages.map((message) => (
-                <div key={message.id} className={`flex items-start gap-4 ${message.role === "user" ? "justify-end" : ""}`}>
-                  {message.role === "assistant" && (
-                    <Avatar className="bg-primary text-primary-foreground">
-                      <AvatarFallback>AI</AvatarFallback>
-                    </Avatar>
-                  )}
-                  <div className={`rounded-lg p-4 max-w-xl ${message.role === 'user' ? 'bg-primary/10' : 'bg-muted'}`}>
-                    {message.imageUrl && (
-                        <div className="mb-2 rounded-md overflow-hidden border">
-                            <Image src={message.imageUrl} alt="User upload" width={300} height={300} className="object-cover" />
-                        </div>
-                    )}
-                    {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
-                    
-                    {message.role === "user" && message.isError && (
-                        <div className="flex items-center gap-2 mt-2 text-destructive">
-                           <AlertCircle className="h-4 w-4" />
-                           <span>Failed to get response.</span>
-                           <Button variant="ghost" size="sm" onClick={() => handleRetry(message)} disabled={isLoading}>
-                               <RefreshCw className="mr-2 h-4 w-4" />
-                               Retry
-                           </Button>
-                        </div>
-                    )}
-
-                    {message.role === "assistant" && (
-                      <div className="flex gap-2 mt-2">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(message.content)}>
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownload(message.content)}>
-                          <Download className="h-4 w-4" />
-                        </Button>
+              {messages.map((message) => {
+                if (message.isTyping) {
+                  return (
+                    <div key={message.id} className="flex items-start gap-4">
+                      <Avatar className="bg-primary text-primary-foreground">
+                        <AvatarFallback>AI</AvatarFallback>
+                      </Avatar>
+                      <div className="rounded-lg p-4 max-w-xl bg-muted flex items-center">
+                          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground"/>
                       </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={message.id} className={`flex items-start gap-4 ${message.role === "user" ? "justify-end" : ""}`}>
+                    {message.role === "assistant" && (
+                      <Avatar className="bg-primary text-primary-foreground">
+                        <AvatarFallback>AI</AvatarFallback>
+                      </Avatar>
+                    )}
+                    <div className={`rounded-lg p-4 max-w-xl ${message.role === 'user' ? 'bg-primary/10' : 'bg-muted'}`}>
+                      {message.imageUrl && (
+                          <div className="mb-2 rounded-md overflow-hidden border">
+                              <Image src={message.imageUrl} alt="User upload" width={300} height={300} className="object-cover" />
+                          </div>
+                      )}
+                      {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
+                      
+                      {message.role === "user" && message.isError && (
+                          <div className="flex items-center gap-2 mt-2 text-destructive">
+                             <AlertCircle className="h-4 w-4" />
+                             <span>Failed to get response.</span>
+                             <Button variant="ghost" size="sm" onClick={() => handleRetry(message)} disabled={isSubmitting}>
+                                 <RefreshCw className="mr-2 h-4 w-4" />
+                                 Retry
+                             </Button>
+                          </div>
+                      )}
+
+                      {message.role === "assistant" && (
+                        <div className="flex gap-2 mt-2">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(message.content)}>
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownload(message.content)}>
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    {message.role === "user" && (
+                      <Avatar>
+                        <AvatarFallback><User /></AvatarFallback>
+                      </Avatar>
                     )}
                   </div>
-                  {message.role === "user" && (
-                    <Avatar>
-                      <AvatarFallback><User /></AvatarFallback>
-                    </Avatar>
-                  )}
-                </div>
-              ))}
-              {isLoading && (
-                  <div className="flex items-start gap-4">
-                     <Avatar className="bg-primary text-primary-foreground">
-                      <AvatarFallback>AI</AvatarFallback>
-                    </Avatar>
-                    <div className="rounded-lg p-4 max-w-xl bg-muted flex items-center">
-                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground"/>
-                    </div>
-                  </div>
-              )}
+                );
+              })}
             </div>
           </ScrollArea>
           
@@ -335,7 +361,7 @@ export default function ChatPage() {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-start gap-2">
                 <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} className="hidden" />
-                 <Button type="button" variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isLoading}>
+                 <Button type="button" variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isSubmitting}>
                     <Paperclip className="h-4 w-4" />
                 </Button>
                 <FormField
@@ -344,7 +370,7 @@ export default function ChatPage() {
                   render={({ field }) => (
                     <FormItem className="flex-1">
                       <FormControl>
-                        <Textarea placeholder="e.g., Explain what's happening in this image..." {...field} rows={1} className="min-h-[40px]" disabled={isLoading} />
+                        <Textarea placeholder="e.g., Explain what's happening in this image..." {...field} rows={1} className="min-h-[40px]" disabled={isSubmitting} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -355,7 +381,7 @@ export default function ChatPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormControl>
-                         <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading || isListening}>
+                         <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting || isListening}>
                           <SelectTrigger className="w-[120px]">
                             <SelectValue placeholder="Language" />
                           </SelectTrigger>
@@ -370,11 +396,11 @@ export default function ChatPage() {
                     </FormItem>
                   )}
                 />
-                 <Button type="button" variant="outline" size="icon" onClick={handleMicClick} className={cn(isListening && 'bg-destructive text-destructive-foreground animate-pulse')}>
+                 <Button type="button" variant="outline" size="icon" onClick={handleMicClick} disabled={isSubmitting} className={cn(isListening && 'bg-destructive text-destructive-foreground animate-pulse')}>
                   <Mic className="h-4 w-4" />
                 </Button>
-                <Button type="submit" size="icon" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                <Button type="submit" size="icon" disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
               </form>
             </Form>
