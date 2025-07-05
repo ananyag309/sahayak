@@ -86,7 +86,8 @@ export default function ScannerPage() {
       const result = await textbookScanner(input);
       setResults(result);
 
-      if (user && storage && db) {
+      // Save to Firestore only for real users
+      if (user && user.uid !== 'demo-user' && storage && db) {
         const storageRef = ref(storage, `textbookUploads/${user.uid}/${Date.now()}-${file.name}`);
         await uploadBytes(storageRef, file);
         const imageUrl = await getDownloadURL(storageRef);
@@ -105,8 +106,8 @@ export default function ScannerPage() {
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "An error occurred",
-        description: error.message || "Failed to generate questions.",
+        title: "Question Generation Failed",
+        description: error.message || "The AI was unable to generate questions from this image. Please try a clearer image or a different page.",
       });
     } finally {
       setIsLoading(false);
@@ -260,43 +261,49 @@ export default function ScannerPage() {
                 <Card>
                 <CardContent className="p-0">
                     <Accordion type="single" collapsible className="w-full" defaultValue="mcq">
-                        <AccordionItem value="mcq">
-                            <AccordionTrigger className="px-6">Multiple Choice Questions ({results.mcqQuestions.length})</AccordionTrigger>
-                            <AccordionContent className="px-6 pb-6">
-                                <ul className="space-y-2 list-decimal list-inside">
-                                    {results.mcqQuestions.map((q, i) => <li key={i}>{q}</li>)}
-                                </ul>
-                            </AccordionContent>
-                        </AccordionItem>
-                        <AccordionItem value="fill-in-the-blank">
-                            <AccordionTrigger className="px-6">Fill in the Blank ({results.fillInTheBlankQuestions.length})</AccordionTrigger>
-                            <AccordionContent className="px-6 pb-6">
-                                <ul className="space-y-2 list-decimal list-inside">
-                                    {results.fillInTheBlankQuestions.map((q, i) => <li key={i}>{q}</li>)}
-                                </ul>
-                            </AccordionContent>
-                        </AccordionItem>
-                        <AccordionItem value="match-the-column">
-                            <AccordionTrigger className="px-6">Match the Column ({results.matchTheColumnQuestions.length})</AccordionTrigger>
-                            <AccordionContent className="px-6 pb-6">
-                                <table className="w-full text-left">
-                                    <thead>
-                                    <tr>
-                                        <th className="p-2 border-b font-semibold">Term</th>
-                                        <th className="p-2 border-b font-semibold">Definition</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    {results.matchTheColumnQuestions.map((pair, i) => (
-                                        <tr key={`match-pair-${i}`}>
-                                            <td className="p-2 border-b align-top">{pair.term}</td>
-                                            <td className="p-2 border-b align-top">{pair.definition}</td>
+                        {results.mcqQuestions.length > 0 && (
+                            <AccordionItem value="mcq">
+                                <AccordionTrigger className="px-6">Multiple Choice Questions ({results.mcqQuestions.length})</AccordionTrigger>
+                                <AccordionContent className="px-6 pb-6">
+                                    <ul className="space-y-2 list-decimal list-inside">
+                                        {results.mcqQuestions.map((q, i) => <li key={`mcq-screen-${i}`}>{q}</li>)}
+                                    </ul>
+                                </AccordionContent>
+                            </AccordionItem>
+                        )}
+                        {results.fillInTheBlankQuestions.length > 0 && (
+                            <AccordionItem value="fill-in-the-blank">
+                                <AccordionTrigger className="px-6">Fill in the Blank ({results.fillInTheBlankQuestions.length})</AccordionTrigger>
+                                <AccordionContent className="px-6 pb-6">
+                                    <ul className="space-y-2 list-decimal list-inside">
+                                        {results.fillInTheBlankQuestions.map((q, i) => <li key={`fib-screen-${i}`}>{q}</li>)}
+                                    </ul>
+                                </AccordionContent>
+                            </AccordionItem>
+                        )}
+                        {results.matchTheColumnQuestions.length > 0 && (
+                            <AccordionItem value="match-the-column">
+                                <AccordionTrigger className="px-6">Match the Column ({results.matchTheColumnQuestions.length})</AccordionTrigger>
+                                <AccordionContent className="px-6 pb-6">
+                                    <table className="w-full text-left">
+                                        <thead>
+                                        <tr>
+                                            <th className="p-2 border-b font-semibold">Term</th>
+                                            <th className="p-2 border-b font-semibold">Definition</th>
                                         </tr>
-                                    ))}
-                                    </tbody>
-                                </table>
-                            </AccordionContent>
-                        </AccordionItem>
+                                        </thead>
+                                        <tbody>
+                                        {results.matchTheColumnQuestions.map((pair, i) => (
+                                            <tr key={`match-pair-${i}`}>
+                                                <td className="p-2 border-b align-top">{pair.term}</td>
+                                                <td className="p-2 border-b align-top">{pair.definition}</td>
+                                            </tr>
+                                        ))}
+                                        </tbody>
+                                    </table>
+                                </AccordionContent>
+                            </AccordionItem>
+                        )}
                     </Accordion>
                 </CardContent>
                 </Card>

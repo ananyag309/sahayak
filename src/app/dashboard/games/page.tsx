@@ -48,7 +48,9 @@ export default function GamesPage() {
       const result = await generateGame(values);
       setGame(result);
       setGameState('playing');
-      if (db && user) {
+      
+      // Save to Firestore only for real users
+      if (user && user.uid !== 'demo-user' && db) {
         await addDoc(collection(db, "games"), {
             userId: user.uid,
             topic: values.topic,
@@ -63,8 +65,8 @@ export default function GamesPage() {
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "An error occurred",
-        description: error.message || "Failed to generate game.",
+        title: "Game Generation Failed",
+        description: error.message || "The AI was unable to generate a game for this topic. Please try again.",
       });
       setGameState('config');
     } finally {
@@ -223,8 +225,8 @@ export default function GamesPage() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" size="lg">
-                  Generate Game
+                <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : "Generate Game"}
                 </Button>
               </form>
             </Form>

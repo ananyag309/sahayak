@@ -44,15 +44,16 @@ export default function DiagramPage() {
       const result = await generateDiagram(input);
       const dataUri = result.diagramDataUri;
 
-      if (storage && user) {
+      // For real users, upload to Firebase Storage to get a persistent URL
+      if (user && user.uid !== 'demo-user' && storage) {
         const fetchRes = await fetch(dataUri);
         const blob = await fetchRes.blob();
-
         const storageRef = ref(storage, `diagrams/${user.uid}/${values.topic.replace(/\s+/g, '_')}-${Date.now()}.png`);
         await uploadBytes(storageRef, blob);
         const downloadURL = await getDownloadURL(storageRef);
         setDiagramUrl(downloadURL);
       } else {
+        // For demo mode or if storage is unavailable, use the temporary data URI
         setDiagramUrl(dataUri);
       }
       
@@ -60,8 +61,8 @@ export default function DiagramPage() {
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "An error occurred",
-        description: error.message || "Failed to generate diagram.",
+        title: "Diagram Generation Failed",
+        description: error.message || "The AI was unable to create a diagram for this topic. Please try again.",
       });
     } finally {
       setIsLoading(false);
@@ -69,11 +70,11 @@ export default function DiagramPage() {
   }
 
   const handleSaveDiagram = async () => {
-    if (!diagramUrl || !user || !currentTopic || !db) {
+    if (!diagramUrl || !user || !currentTopic || !db || user.uid === 'demo-user') {
       toast({
         variant: "destructive",
         title: "Save failed",
-        description: "Missing data or Firebase connection. Please try again.",
+        description: "You must be signed in to save diagrams to a collection.",
       });
       return;
     }
@@ -90,7 +91,7 @@ export default function DiagramPage() {
        toast({
         variant: "destructive",
         title: "Save failed",
-        description: error.message || "Could not save diagram to Firestore.",
+        description: error.message || "Could not save diagram to your collection.",
       });
     } finally {
       setIsSaving(false);
@@ -141,7 +142,7 @@ export default function DiagramPage() {
                  {isLoading && (
                     <div className="flex flex-col items-center gap-4 text-center p-4">
                         <Loader2 className="h-8 w-8 animate-spin text-primary"/>
-                        <p className="text-muted-foreground">Generating your diagram...<br/>This can take a few moments.</p>
+                        <p className="text-muted-foreground">Generating your diagram...<br/>This can take up to 30 seconds.</p>
                     </div>
                  )}
                  {!isLoading && diagramUrl && (
@@ -155,7 +156,7 @@ export default function DiagramPage() {
                                     <Download className="mr-2 h-4 w-4"/> Download
                                 </a>
                             </Button>
-                            <Button className="flex-1" variant="outline" onClick={handleSaveDiagram} disabled={isSaving}>
+                            <Button className="flex-1" variant="outline" onClick={handleSaveDiagram} disabled={isSaving || (user?.uid === 'demo-user')}>
                                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                                 Save to Collection
                             </Button>

@@ -13,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FlipHorizontal, Printer } from "lucide-react";
+import { Loader2, FlipHorizontal, Printer, AlertTriangle } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 const formSchema = z.object({
@@ -28,13 +28,13 @@ type CardData = {
 };
 
 type CardState = CardData & {
-  imageUrl?: string;
+  imageUrl?: string | null; // null indicates a failed image generation
   isFlipped: boolean;
 };
 
 export default function FlashcardsPage() {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingText, setIsGeneratingText] = useState(false);
   const [cards, setCards] = useState<CardState[]>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -54,27 +54,31 @@ export default function FlashcardsPage() {
             if (media?.url) {
                 setCards(prev => {
                     const newCards = [...prev];
-                    if (newCards[index]) {
-                        newCards[index].imageUrl = media.url;
-                    }
+                    if (newCards[index]) newCards[index].imageUrl = media.url;
                     return newCards;
                 });
+            } else {
+                 throw new Error("No media URL returned");
             }
         } catch (imgError) {
             console.error(`Image generation failed for: ${card.term}`, imgError);
-            // Optionally, we could set an error state on the card to show a broken image icon
+            setCards(prev => {
+                const newCards = [...prev];
+                if (newCards[index]) newCards[index].imageUrl = null; // Mark as failed
+                return newCards;
+            });
         }
     }));
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true);
+    setIsGeneratingText(true);
     setCards([]);
     try {
       const result = await generateFlashcards(values);
       const initialCards = result.cards.map(c => ({ ...c, isFlipped: false, imageUrl: undefined }));
       setCards(initialCards);
-      setIsLoading(false); // Stop main loading indicator once text is ready
+      
       toast({ title: "Flashcards created!", description: "Generating images in the background..." });
 
       // Generate images without blocking the UI
@@ -83,10 +87,11 @@ export default function FlashcardsPage() {
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "An error occurred",
-        description: error.message || "Failed to generate flashcards.",
+        title: "Flashcard Generation Failed",
+        description: error.message || "The AI was unable to generate flashcards for this topic.",
       });
-      setIsLoading(false); // Ensure loading stops on error
+    } finally {
+        setIsGeneratingText(false);
     }
   }
 
@@ -101,6 +106,9 @@ export default function FlashcardsPage() {
   const handlePrint = () => {
     window.print();
   }
+  
+  const isLoading = isGeneratingText || (cards.length > 0 && cards.some(c => c.imageUrl === undefined));
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -117,14 +125,14 @@ export default function FlashcardsPage() {
                   <FormField control={form.control} name="topic" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Topic</FormLabel>
-                      <FormControl><Input placeholder="e.g., Solar System Planets" {...field} disabled={isLoading} /></FormControl>
+                      <FormControl><Input placeholder="e.g., Solar System Planets" {...field} disabled={isGeneratingText} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="grade" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Grade Level</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isGeneratingText}>
                         <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                         <SelectContent>{[...Array(12)].map((_, i) => (<SelectItem key={i + 1} value={`${i + 1}`}>{`Grade ${i + 1}`}</SelectItem>))}</SelectContent>
                       </Select>
@@ -132,8 +140,8 @@ export default function FlashcardsPage() {
                     </FormItem>
                   )} />
                   <div className="sm:pt-8">
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Generate Flashcards"}
+                    <Button type="submit" className="w-full" disabled={isGeneratingText}>
+                        {isGeneratingText ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Generate Flashcards"}
                     </Button>
                   </div>
                 </form>
@@ -142,7 +150,7 @@ export default function FlashcardsPage() {
          </Card>
        </div>
 
-        {isLoading && !cards.length && (
+        {isGeneratingText && (
             <div className="text-center p-8">
                 <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary" />
                 <p className="mt-4 text-muted-foreground">Generating flashcard text... this should be quick.</p>
@@ -152,7 +160,7 @@ export default function FlashcardsPage() {
        {cards.length > 0 && (
         <>
             <div className="flex justify-end no-print">
-                <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print Flashcards</Button>
+                <Button onClick={handlePrint} disabled={isLoading}><Printer className="mr-2 h-4 w-4" /> {isLoading ? "Generating Images..." : "Print Flashcards"}</Button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 flashcard-print-container">
               <AnimatePresence>
@@ -172,11 +180,18 @@ export default function FlashcardsPage() {
                       {/* Back of Card */}
                       <div className="absolute w-full h-full backface-hidden flex flex-col items-center justify-center p-4 rounded-lg border bg-card shadow-md rotate-y-180">
                         <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center">
-                            {card.imageUrl ? (
-                                <Image src={card.imageUrl} alt={card.term} width={80} height={80} className="rounded-md" />
-                            ) : (
+                            {card.imageUrl === undefined && ( // Still loading
                                 <div className="h-[80px] w-[80px] flex items-center justify-center">
                                   <Loader2 className="h-5 w-5 animate-spin" />
+                                </div>
+                            )}
+                            {card.imageUrl && ( // Load successful
+                                <Image src={card.imageUrl} alt={card.term} width={80} height={80} className="rounded-md" />
+                            )}
+                             {card.imageUrl === null && ( // Load failed
+                                <div className="h-[80px] w-[80px] flex flex-col items-center justify-center text-destructive">
+                                  <AlertTriangle className="h-6 w-6" />
+                                  <span className="text-xs mt-1">Error</span>
                                 </div>
                             )}
                             <p className="text-sm">{card.definition}</p>

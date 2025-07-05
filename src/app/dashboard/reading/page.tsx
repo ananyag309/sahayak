@@ -5,7 +5,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { assessReading, type AssessReadingInput, type AssessReadingOutput } from "@/ai/flows/reading-assessor";
-import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -44,11 +43,17 @@ export default function ReadingPage() {
     
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+        mediaRecorderRef.current.stop();
+      }
     }
   }, []);
 
   const startRecording = async () => {
     if (hasPermission) {
+      setAudioBlob(null);
+      setAudioUrl(null);
+      setAssessment(null);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorderRef.current = new MediaRecorder(stream);
       const chunks: Blob[] = [];
@@ -58,6 +63,8 @@ export default function ReadingPage() {
         const blob = new Blob(chunks, { type: 'audio/webm' });
         setAudioBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
+        // Stop all tracks to turn off the microphone indicator
+        stream.getTracks().forEach(track => track.stop());
       };
       
       mediaRecorderRef.current.start();
@@ -113,8 +120,8 @@ export default function ReadingPage() {
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "An error occurred",
-        description: error.message || "Failed to assess reading.",
+        title: "Assessment Failed",
+        description: error.message || "The AI was unable to assess this reading. Please try recording again.",
       });
     } finally {
       setIsLoading(false);

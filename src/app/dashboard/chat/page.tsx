@@ -60,14 +60,16 @@ export default function ChatPage() {
   
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    setMessages(prev => [...prev, { role: "user", content: values.question }]);
+    const userMessage: Message = { role: "user", content: values.question };
+    setMessages(prev => [...prev, userMessage]);
     
     try {
       const input: AIChatInput = values;
       const result = await aiChat(input);
       setMessages(prev => [...prev, { role: "assistant", content: result.response }]);
       
-      if (db && user) {
+      // Save to Firestore only for real users
+      if (user && user.uid !== 'demo-user' && db) {
         await addDoc(collection(db, "chatResponses"), {
           userId: user.uid,
           prompt: values.question,
@@ -82,9 +84,10 @@ export default function ChatPage() {
       toast({
         variant: "destructive",
         title: "An error occurred",
-        description: error.message || "Failed to get a response from the AI.",
+        description: error.message || "Failed to get a response from the AI. Please try again.",
       });
-       setMessages(prev => prev.slice(0, -1)); // Remove user message on error
+       // Remove the user's message from the chat if the API call failed
+       setMessages(prev => prev.filter(m => m !== userMessage));
     } finally {
       setIsLoading(false);
     }
@@ -131,6 +134,16 @@ export default function ChatPage() {
                   )}
                 </div>
               ))}
+              {isLoading && (
+                  <div className="flex items-start gap-4">
+                     <Avatar className="bg-primary text-primary-foreground">
+                      <AvatarFallback>AI</AvatarFallback>
+                    </Avatar>
+                    <div className="rounded-lg p-4 max-w-xl bg-muted flex items-center">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground"/>
+                    </div>
+                  </div>
+              )}
             </div>
           </ScrollArea>
           
@@ -169,7 +182,7 @@ export default function ChatPage() {
                     </FormItem>
                   )}
                 />
-                 <Button type="button" variant="outline" size="icon" disabled={isLoading}>
+                 <Button type="button" variant="outline" size="icon" disabled={true}>
                   <Mic className="h-4 w-4" />
                 </Button>
                 <Button type="submit" size="icon" disabled={isLoading}>

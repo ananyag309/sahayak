@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (demo) {
       console.warn("In Demo Mode. Using a mock user for UI preview.");
       const mockUser = {
-        uid: 'mock-user-uid',
+        uid: 'demo-user', // Use a specific string to identify demo user
         displayName: 'Demo User',
         email: 'demo@example.com',
         photoURL: null,

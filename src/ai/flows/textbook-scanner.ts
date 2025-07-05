@@ -32,7 +32,7 @@ const TextbookScannerOutputSchema = z.object({
   fillInTheBlankQuestions: z
     .array(z.string())
     .describe('A list of fill-in-the-blank questions. Use underscores `___` for the blank part.'),
-  matchTheColumnQuestions: z.array(MatchPairSchema).describe('A list of term/definition pairs for a matching exercise.'),
+  matchTheColumnQuestions: z.array(MatchPairSchema).describe('An array of objects for a matching exercise, where each object has a "term" and a corresponding "definition".'),
 });
 export type TextbookScannerOutput = z.infer<typeof TextbookScannerOutputSchema>;
 
@@ -50,7 +50,7 @@ const prompt = ai.definePrompt({
 
   1.  **Multiple Choice Questions:** Create several multiple-choice questions.
   2.  **Fill in the Blank:** Create several fill-in-the-blank sentences. Use underscores like \`___\` to indicate the blank.
-  3.  **Match the Column:** Create several pairs of terms and their corresponding definitions.
+  3.  **Match the Column:** Create several pairs of terms and their corresponding definitions. Format this as an array of objects, with each object having a 'term' key and a 'definition' key.
 
   The questions must be based *only* on the text visible in the image.
 
@@ -68,6 +68,9 @@ const textbookScannerFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    if (!output) {
+      throw new Error("The AI failed to generate questions from the provided image.");
+    }
+    return output;
   }
 );

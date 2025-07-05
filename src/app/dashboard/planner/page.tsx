@@ -43,7 +43,8 @@ export default function PlannerPage() {
       const result = await generateLessonPlan(input);
       setLessonPlan(result.weeklyPlan);
 
-      if (db && user) {
+      // Save to Firestore only for real users
+      if (user && user.uid !== 'demo-user' && db) {
         await addDoc(collection(db, "lessonPlans"), {
           userId: user.uid,
           subject: values.subject,
@@ -60,8 +61,8 @@ export default function PlannerPage() {
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "An error occurred",
-        description: error.message || "Failed to generate lesson plan.",
+        title: "Plan Generation Failed",
+        description: error.message || "Failed to generate lesson plan. Please try again.",
       });
     } finally {
       setIsLoading(false);
