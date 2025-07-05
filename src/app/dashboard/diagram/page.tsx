@@ -12,8 +12,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { db } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Download, Loader2, Save } from "lucide-react";
 
 const formSchema = z.object({
@@ -34,13 +35,31 @@ export default function DiagramPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!user || !storage) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You must be logged in and Firebase Storage must be configured.",
+      });
+      return;
+    }
     setIsLoading(true);
     setDiagramUrl(null);
     setCurrentTopic(values.topic);
+
     try {
       const input: GenerateDiagramInput = { topic: values.topic };
       const result = await generateDiagram(input);
-      setDiagramUrl(result.diagramUrl);
+      const dataUri = result.diagramDataUri;
+
+      const fetchRes = await fetch(dataUri);
+      const blob = await fetchRes.blob();
+
+      const storageRef = ref(storage, `diagrams/${user.uid}/${values.topic.replace(/\s+/g, '_')}-${Date.now()}.png`);
+      await uploadBytes(storageRef, blob);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      setDiagramUrl(downloadURL);
       toast({ title: "Diagram generated successfully!" });
     } catch (error: any) {
       toast({
@@ -54,12 +73,11 @@ export default function DiagramPage() {
   }
 
   const handleSaveDiagram = async () => {
-    if (!diagramUrl || !user || !currentTopic) return;
-    if (!db) {
+    if (!diagramUrl || !user || !currentTopic || !db) {
       toast({
         variant: "destructive",
         title: "Save failed",
-        description: "Firebase is not configured. Please check your .env file.",
+        description: "Missing data or Firebase connection. Please try again.",
       });
       return;
     }

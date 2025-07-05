@@ -17,7 +17,7 @@ const GenerateDiagramInputSchema = z.object({
 export type GenerateDiagramInput = z.infer<typeof GenerateDiagramInputSchema>;
 
 const GenerateDiagramOutputSchema = z.object({
-  diagramUrl: z.string().describe('URL of the generated diagram.'),
+  diagramDataUri: z.string().describe('The generated diagram as a data URI.'),
 });
 export type GenerateDiagramOutput = z.infer<typeof GenerateDiagramOutputSchema>;
 
@@ -25,27 +25,25 @@ export async function generateDiagram(input: GenerateDiagramInput): Promise<Gene
   return generateDiagramFlow(input);
 }
 
-const diagramGeneratorPrompt = ai.definePrompt({
-  name: 'diagramGeneratorPrompt',
-  input: {schema: GenerateDiagramInputSchema},
-  output: {schema: GenerateDiagramOutputSchema},
-  prompt: `You are an expert in creating educational diagrams. Based on the topic provided, generate a URL for a chalkboard-style diagram that visually explains the concept.
-
-Topic: {{{topic}}}
-
-Ensure the diagram is clear, concise, and suitable for students.
-
-Please only return the URL of the image. Do not include any other text.`, 
-});
-
 const generateDiagramFlow = ai.defineFlow(
   {
     name: 'generateDiagramFlow',
     inputSchema: GenerateDiagramInputSchema,
     outputSchema: GenerateDiagramOutputSchema,
   },
-  async input => {
-    const {output} = await diagramGeneratorPrompt(input);
-    return output!;
+  async (input) => {
+    const {media} = await ai.generate({
+        model: 'googleai/gemini-2.0-flash-preview-image-generation',
+        prompt: `Generate a clear, concise, and student-friendly chalkboard-style diagram that visually explains the concept of: ${input.topic}`,
+        config: {
+            responseModalities: ['TEXT', 'IMAGE'],
+        },
+    });
+
+    if (!media?.url) {
+        throw new Error('Image generation failed.');
+    }
+
+    return { diagramDataUri: media.url };
   }
 );

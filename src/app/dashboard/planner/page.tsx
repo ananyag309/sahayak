@@ -14,6 +14,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Copy, Download } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/components/auth-provider";
+import { db } from "@/lib/firebase";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 const formSchema = z.object({
   subject: z.string().min(2, { message: "Subject is required." }),
@@ -22,6 +25,7 @@ const formSchema = z.object({
 });
 
 export default function PlannerPage() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [lessonPlan, setLessonPlan] = useState<string | null>(null);
@@ -32,13 +36,29 @@ export default function PlannerPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!user) {
+      toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in." });
+      return;
+    }
     setIsLoading(true);
     setLessonPlan(null);
     try {
       const input: LessonPlanInput = values;
       const result = await generateLessonPlan(input);
       setLessonPlan(result.weeklyPlan);
-      toast({ title: "Lesson plan generated!" });
+
+      if (db) {
+        await addDoc(collection(db, "lessonPlans"), {
+          userId: user.uid,
+          subject: values.subject,
+          grade: values.grade,
+          topics: values.topics,
+          weekPlan: result.weeklyPlan,
+          createdAt: serverTimestamp(),
+        });
+      }
+      
+      toast({ title: "Lesson plan generated and saved!" });
     } catch (error: any) {
       toast({
         variant: "destructive",

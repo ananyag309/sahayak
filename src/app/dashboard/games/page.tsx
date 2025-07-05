@@ -13,6 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Copy, Download } from "lucide-react";
+import { useAuth } from "@/components/auth-provider";
+import { db } from "@/lib/firebase";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 const formSchema = z.object({
   topic: z.string().min(3, { message: "Topic is required." }),
@@ -20,6 +23,7 @@ const formSchema = z.object({
 });
 
 export default function GamesPage() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [game, setGame] = useState<GenerateGameOutput | null>(null);
@@ -30,13 +34,30 @@ export default function GamesPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!user) {
+      toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in." });
+      return;
+    }
+
     setIsLoading(true);
     setGame(null);
     try {
       const input: GenerateGameInput = values;
       const result = await generateGame(input);
       setGame(result);
-      toast({ title: "Game generated successfully!" });
+      
+      if (db) {
+        await addDoc(collection(db, "games"), {
+            userId: user.uid,
+            topic: values.topic,
+            grade: values.grade,
+            type: result.format,
+            output: result.gameLogic,
+            createdAt: serverTimestamp(),
+        });
+      }
+
+      toast({ title: "Game generated and saved!" });
     } catch (error: any) {
       toast({
         variant: "destructive",

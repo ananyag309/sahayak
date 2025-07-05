@@ -15,6 +15,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, Download, Loader2, Mic, Send, User } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
+import { db } from "@/lib/firebase";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 const formSchema = z.object({
   question: z.string().min(1, { message: "Please enter a question or concept." }),
@@ -57,6 +59,15 @@ export default function ChatPage() {
   };
   
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Not Logged In",
+        description: "You need to be logged in to chat with the assistant.",
+      });
+      return;
+    }
+
     setIsLoading(true);
     setMessages(prev => [...prev, { role: "user", content: values.question }]);
     
@@ -64,6 +75,17 @@ export default function ChatPage() {
       const input: AIChatInput = values;
       const result = await aiChat(input);
       setMessages(prev => [...prev, { role: "assistant", content: result.response }]);
+      
+      if (db) {
+        await addDoc(collection(db, "chatResponses"), {
+          userId: user.uid,
+          prompt: values.question,
+          response: result.response,
+          language: values.language,
+          createdAt: serverTimestamp(),
+        });
+      }
+
       form.reset({ ...values, question: "" });
     } catch (error: any) {
       toast({

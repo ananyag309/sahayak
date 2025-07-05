@@ -11,10 +11,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, Download, Loader2, Upload } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { useAuth } from "@/components/auth-provider";
+import { db, storage } from "@/lib/firebase";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const formSchema = z.object({
   photo: z.any().refine(file => file?.length == 1, "Please upload a photo."),
@@ -22,6 +25,7 @@ const formSchema = z.object({
 });
 
 export default function ScannerPage() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -52,17 +56,35 @@ export default function ScannerPage() {
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!user || !storage || !db) {
+        toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in and Firebase must be configured." });
+        return;
+    }
     setIsLoading(true);
     setResults(null);
     try {
-      const photoDataUri = await toDataUri(values.photo[0]);
+      const file = values.photo[0];
+      const storageRef = ref(storage, `textbookUploads/${user.uid}/${Date.now()}-${file.name}`);
+      await uploadBytes(storageRef, file);
+      const imageUrl = await getDownloadURL(storageRef);
+
+      const photoDataUri = await toDataUri(file);
       const input: TextbookScannerInput = { 
         photoDataUri, 
         gradeLevel: values.gradeLevel 
       };
       const result = await textbookScanner(input);
       setResults(result);
-      toast({ title: "Questions generated successfully!" });
+
+      await addDoc(collection(db, "worksheets"), {
+          userId: user.uid,
+          imageURL: imageUrl,
+          resultText: JSON.stringify(result),
+          grade: values.gradeLevel,
+          createdAt: serverTimestamp(),
+      });
+
+      toast({ title: "Questions generated and saved!" });
     } catch (error: any) {
       toast({
         variant: "destructive",
