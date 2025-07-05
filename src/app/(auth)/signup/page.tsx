@@ -91,7 +91,22 @@ export default function SignupPage() {
       });
     } catch (error: any) {
         let description: React.ReactNode = "An unexpected error occurred. Please try again.";
-        if (error.code === 'auth/operation-not-allowed') {
+        if (error.message && error.message.includes('identity-toolkit')) {
+            description = (
+                <span>
+                    The authentication service is not enabled for this project. Please{' '}
+                    <a
+                        href={`https://console.cloud.google.com/apis/library/identitytoolkit.googleapis.com?project=${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline font-medium"
+                    >
+                        enable the Identity Toolkit API
+                    </a>
+                    {' '}and try again. It may take a few minutes to activate.
+                </span>
+            );
+        } else if (error.code === 'auth/operation-not-allowed') {
              description = (
                 <span>
                 Google Sign-in is not enabled. Please enable it in your{' '}
