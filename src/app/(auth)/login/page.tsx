@@ -115,14 +115,14 @@ export default function LoginPage() {
             />
             <Button type="submit" className="w-full" disabled={isLoading || !isFirebaseConfigured}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Log In
+              Sign In
             </Button>
           </form>
         </Form>
         <div className="mt-4 text-center text-sm">
           Don&apos;t have an account?{" "}
           <Link href="/signup" className="underline hover:text-primary">
-            Sign up
+            Sign Up
           </Link>
         </div>
       </CardContent>
