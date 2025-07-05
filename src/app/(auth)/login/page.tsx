@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -65,10 +65,32 @@ export default function LoginPage() {
         description: "Welcome back! Redirecting you to the dashboard.",
       });
     } catch (error: any) {
+      let description: React.ReactNode = "An unexpected error occurred. Please try again.";
+
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+          description = "Invalid email or password. Please check your credentials and try again.";
+      } else if (error.code === 'auth/operation-not-allowed') {
+          description = (
+            <span>
+              Email/Password sign-in is not enabled. Please enable it in your{' '}
+              <a
+                href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/authentication/providers`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline font-medium"
+              >
+                Firebase project settings
+              </a>.
+            </span>
+          );
+      } else {
+        description = error.message;
+      }
+      
       toast({
         variant: "destructive",
         title: "Login Failed",
-        description: "Invalid email or password. Please check your credentials and try again.",
+        description,
       });
     } finally {
       setIsLoading(false);

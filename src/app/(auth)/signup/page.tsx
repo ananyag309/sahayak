@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -83,10 +83,22 @@ export default function SignupPage() {
         description: "Welcome to Sahayak! Redirecting you to the dashboard.",
       });
     } catch (error: any) {
-      let description = "An unexpected error occurred. Please try again.";
+      let description: React.ReactNode = "An unexpected error occurred. Please try again.";
 
       if (error.code === 'auth/operation-not-allowed') {
-        description = "Email/Password sign-in is not enabled. Please enable it in your Firebase project's Authentication settings.";
+        description = (
+          <span>
+            Email/Password sign-in is not enabled. Please enable it in your{' '}
+            <a
+              href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/authentication/providers`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-medium"
+            >
+              Firebase project settings
+            </a>.
+          </span>
+        );
       } else if (error.code === 'auth/email-already-in-use') {
         description = "This email is already registered. Please sign in instead.";
       } else {
