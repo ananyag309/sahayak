@@ -12,13 +12,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Terminal } from "lucide-react";
+import { Loader2, Upload } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useAuth } from "@/components/auth-provider";
 import { db, storage } from "@/lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 
 
@@ -59,22 +58,14 @@ export default function ScannerPage() {
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (isDemoMode) {
-        toast({ variant: "destructive", title: "Demo Mode", description: "This feature is disabled in Demo Mode." });
-        return;
-    }
-    if (!user || !storage || !db) {
-        toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in and Firebase must be configured." });
+    if (!user) {
+        toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to use this feature." });
         return;
     }
     setIsLoading(true);
     setResults(null);
     try {
       const file = values.photo[0];
-      const storageRef = ref(storage, `textbookUploads/${user.uid}/${Date.now()}-${file.name}`);
-      await uploadBytes(storageRef, file);
-      const imageUrl = await getDownloadURL(storageRef);
-
       const photoDataUri = await toDataUri(file);
       const input: TextbookScannerInput = { 
         photoDataUri, 
@@ -83,15 +74,22 @@ export default function ScannerPage() {
       const result = await textbookScanner(input);
       setResults(result);
 
-      await addDoc(collection(db, "worksheets"), {
-          userId: user.uid,
-          imageURL: imageUrl,
-          resultText: JSON.stringify(result),
-          grade: values.gradeLevel,
-          createdAt: serverTimestamp(),
-      });
+      if (!isDemoMode && storage && db) {
+        const storageRef = ref(storage, `textbookUploads/${user.uid}/${Date.now()}-${file.name}`);
+        await uploadBytes(storageRef, file);
+        const imageUrl = await getDownloadURL(storageRef);
+        await addDoc(collection(db, "worksheets"), {
+            userId: user.uid,
+            imageURL: imageUrl,
+            resultText: JSON.stringify(result),
+            grade: values.gradeLevel,
+            createdAt: serverTimestamp(),
+        });
+        toast({ title: "Questions generated and saved!" });
+      } else {
+        toast({ title: "Questions generated!" });
+      }
 
-      toast({ title: "Questions generated and saved!" });
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -115,15 +113,6 @@ export default function ScannerPage() {
             <CardTitle>Upload Content</CardTitle>
           </CardHeader>
           <CardContent>
-            {isDemoMode && (
-                <Alert className="mb-4">
-                    <Terminal className="h-4 w-4" />
-                    <AlertTitle>Demo Mode</AlertTitle>
-                    <AlertDescription>
-                     This feature is disabled because it requires a connection to AI services and Firebase. Please sign in with a real account to use this feature.
-                    </AlertDescription>
-                </Alert>
-            )}
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
@@ -134,7 +123,7 @@ export default function ScannerPage() {
                       <FormLabel>Textbook Photo</FormLabel>
                       <FormControl>
                         <div className="flex items-center justify-center w-full">
-                          <label htmlFor="dropzone-file" className={cn("flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg bg-muted hover:bg-muted/80", isDemoMode ? "cursor-not-allowed" : "cursor-pointer")}>
+                          <label htmlFor="dropzone-file" className={cn("flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg bg-muted hover:bg-muted/80", "cursor-pointer")}>
                             {preview ? (
                                 <Image src={preview} alt="Preview" width={200} height={200} className="object-contain h-full p-2" />
                             ) : (
@@ -145,7 +134,7 @@ export default function ScannerPage() {
                                 </div>
                             )}
                             <Input id="dropzone-file" type="file" className="hidden" accept="image/png, image/jpeg, image/webp"
-                                disabled={isDemoMode}
+                                disabled={isLoading}
                                 onChange={(e) => {
                                     field.onChange(e.target.files);
                                     handleFileChange(e);
@@ -164,7 +153,7 @@ export default function ScannerPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Grade Level</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isDemoMode}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a grade level" />
@@ -180,7 +169,7 @@ export default function ScannerPage() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={isLoading || isDemoMode}>
+                <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Generate Questions"}
                 </Button>
               </form>
@@ -231,7 +220,7 @@ export default function ScannerPage() {
           ) : (
              <Card className="min-h-[400px] flex items-center justify-center">
                  <p className="text-muted-foreground text-center p-4">
-                     {isDemoMode ? "Textbook Scanner is disabled in Demo Mode." : "Upload an image to generate questions."}
+                     Upload an image to generate questions.
                 </p>
              </Card>
           )}

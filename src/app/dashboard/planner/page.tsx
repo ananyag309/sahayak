@@ -11,13 +11,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Copy, Download, Terminal } from "lucide-react";
+import { Loader2, Copy, Download } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/components/auth-provider";
 import { db } from "@/lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
   subject: z.string().min(2, { message: "Subject is required." }),
@@ -37,10 +36,6 @@ export default function PlannerPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (isDemoMode) {
-      toast({ variant: "destructive", title: "Demo Mode", description: "This feature is disabled in Demo Mode." });
-      return;
-    }
     if (!user) {
       toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in." });
       return;
@@ -52,7 +47,7 @@ export default function PlannerPage() {
       const result = await generateLessonPlan(input);
       setLessonPlan(result.weeklyPlan);
 
-      if (db) {
+      if (db && user && !isDemoMode) {
         await addDoc(collection(db, "lessonPlans"), {
           userId: user.uid,
           subject: values.subject,
@@ -61,9 +56,11 @@ export default function PlannerPage() {
           weekPlan: result.weeklyPlan,
           createdAt: serverTimestamp(),
         });
+        toast({ title: "Lesson plan generated and saved!" });
+      } else {
+        toast({ title: "Lesson plan generated!" });
       }
       
-      toast({ title: "Lesson plan generated and saved!" });
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -104,15 +101,6 @@ export default function PlannerPage() {
             <CardTitle>Plan Details</CardTitle>
           </CardHeader>
           <CardContent>
-             {isDemoMode && (
-                <Alert className="mb-4">
-                    <Terminal className="h-4 w-4" />
-                    <AlertTitle>Demo Mode</AlertTitle>
-                    <AlertDescription>
-                    This feature is disabled because it requires a Gemini API key. Please sign in with a real account and provide an API key to use this feature.
-                    </AlertDescription>
-                </Alert>
-            )}
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
@@ -121,7 +109,7 @@ export default function PlannerPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Subject</FormLabel>
-                      <FormControl><Input placeholder="e.g., Science" {...field} disabled={isLoading || isDemoMode} /></FormControl>
+                      <FormControl><Input placeholder="e.g., Science" {...field} disabled={isLoading} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -132,7 +120,7 @@ export default function PlannerPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Grade Level</FormLabel>
-                       <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading || isDemoMode}>
+                       <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a grade level" />
@@ -155,13 +143,13 @@ export default function PlannerPage() {
                     <FormItem>
                       <FormLabel>Topics to Cover</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="e.g., Photosynthesis, Cell Structure, Plant Life Cycle" {...field} disabled={isLoading || isDemoMode} />
+                        <Textarea placeholder="e.g., Photosynthesis, Cell Structure, Plant Life Cycle" {...field} disabled={isLoading} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={isLoading || isDemoMode}>
+                <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Generate Plan"}
                 </Button>
               </form>
@@ -192,7 +180,7 @@ export default function PlannerPage() {
                 {!isLoading && !lessonPlan && (
                     <div className="flex-1 flex items-center justify-center">
                         <p className="text-muted-foreground text-center">
-                            {isDemoMode ? "Lesson Planner is disabled in Demo Mode." : "Fill out the form to generate your lesson plan."}
+                           Fill out the form to generate your lesson plan.
                         </p>
                     </div>
                 )}
