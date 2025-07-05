@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -12,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2, Upload, Printer } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useAuth } from "@/components/auth-provider";
 import { db, storage } from "@/lib/firebase";
@@ -56,6 +57,10 @@ export default function ScannerPage() {
         reader.readAsDataURL(file);
     });
   }
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user) {
@@ -103,7 +108,7 @@ export default function ScannerPage() {
 
   return (
     <div className="grid lg:grid-cols-2 gap-8">
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 no-print">
         <header>
           <h1 className="text-3xl font-bold tracking-tight font-headline">Textbook Scanner</h1>
           <p className="text-muted-foreground">Upload a photo of a textbook page to generate questions.</p>
@@ -179,51 +184,95 @@ export default function ScannerPage() {
       </div>
 
       <div className="flex flex-col gap-4">
-        <header>
-          <h2 className="text-2xl font-bold tracking-tight font-headline">Generated Questions</h2>
-          <p className="text-muted-foreground">Results from the AI will appear here.</p>
-        </header>
-        <div className="flex-1">
-          {isLoading ? (
-            <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary"/></div>
-          ) : results ? (
-            <Card>
-              <CardContent className="p-0">
-                  <Accordion type="single" collapsible className="w-full" defaultValue="mcq">
-                      <AccordionItem value="mcq">
-                          <AccordionTrigger className="px-6">Multiple Choice Questions ({results.mcqQuestions.length})</AccordionTrigger>
-                          <AccordionContent className="px-6 pb-6">
-                              <ul className="space-y-2 list-decimal list-inside">
-                                  {results.mcqQuestions.map((q, i) => <li key={i}>{q}</li>)}
-                              </ul>
-                          </AccordionContent>
-                      </AccordionItem>
-                      <AccordionItem value="fill-in-the-blank">
-                          <AccordionTrigger className="px-6">Fill in the Blank ({results.fillInTheBlankQuestions.length})</AccordionTrigger>
-                          <AccordionContent className="px-6 pb-6">
-                              <ul className="space-y-2 list-decimal list-inside">
-                                  {results.fillInTheBlankQuestions.map((q, i) => <li key={i}>{q}</li>)}
-                              </ul>
-                          </AccordionContent>
-                      </AccordionItem>
-                      <AccordionItem value="match-the-column">
-                          <AccordionTrigger className="px-6">Match the Column ({results.matchTheColumnQuestions.length})</AccordionTrigger>
-                          <AccordionContent className="px-6 pb-6">
-                              <ul className="space-y-2 list-decimal list-inside">
-                                  {results.matchTheColumnQuestions.map((q, i) => <li key={i}>{q}</li>)}
-                              </ul>
-                          </AccordionContent>
-                      </AccordionItem>
-                  </Accordion>
-              </CardContent>
-            </Card>
-          ) : (
-             <Card className="min-h-[400px] flex items-center justify-center">
-                 <p className="text-muted-foreground text-center p-4">
-                     Upload an image to generate questions.
-                </p>
-             </Card>
-          )}
+        {/* Printable Worksheet - only visible for printing */}
+        {results && (
+            <div className="print-only-worksheet">
+                <div className="text-center mb-8">
+                    <h1 className="text-2xl font-bold">Worksheet</h1>
+                    <p className="text-sm mt-4">Name: _________________________ &nbsp;&nbsp;&nbsp;&nbsp; Date: _________________________</p>
+                </div>
+                <div className="space-y-8">
+                    {results.mcqQuestions.length > 0 && (
+                        <div>
+                            <h2 className="text-lg font-bold border-b pb-2 mb-3">A. Multiple Choice Questions</h2>
+                            <ol className="list-decimal list-outside space-y-3 pl-5">
+                                {results.mcqQuestions.map((q, i) => <li key={`mcq-print-${i}`}>{q}</li>)}
+                            </ol>
+                        </div>
+                    )}
+                    {results.fillInTheBlankQuestions.length > 0 && (
+                        <div>
+                            <h2 className="text-lg font-bold border-b pb-2 mb-3">B. Fill in the Blanks</h2>
+                            <ol className="list-decimal list-outside space-y-3 pl-5">
+                                {results.fillInTheBlankQuestions.map((q, i) => <li key={`fib-print-${i}`}>{q}</li>)}
+                            </ol>
+                        </div>
+                    )}
+                    {results.matchTheColumnQuestions.length > 0 && (
+                        <div>
+                            <h2 className="text-lg font-bold border-b pb-2 mb-3">C. Match the Columns</h2>
+                             <ol className="list-decimal list-outside space-y-3 pl-5">
+                                  {results.matchTheColumnQuestions.map((q, i) => <li key={`match-print-${i}`}>{q}</li>)}
+                              </ol>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
+
+        {/* On-screen interactive view */}
+        <div className="screen-only flex flex-col gap-4 flex-1">
+            <header>
+                <h2 className="text-2xl font-bold tracking-tight font-headline">Generated Questions</h2>
+                <p className="text-muted-foreground">Results from the AI will appear here.</p>
+            </header>
+            <div className="flex-1">
+            {isLoading ? (
+                <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary"/></div>
+            ) : results ? (
+                <>
+                <div className="flex justify-end mb-4">
+                    <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4"/> Print Worksheet</Button>
+                </div>
+                <Card>
+                <CardContent className="p-0">
+                    <Accordion type="single" collapsible className="w-full" defaultValue="mcq">
+                        <AccordionItem value="mcq">
+                            <AccordionTrigger className="px-6">Multiple Choice Questions ({results.mcqQuestions.length})</AccordionTrigger>
+                            <AccordionContent className="px-6 pb-6">
+                                <ul className="space-y-2 list-decimal list-inside">
+                                    {results.mcqQuestions.map((q, i) => <li key={i}>{q}</li>)}
+                                </ul>
+                            </AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="fill-in-the-blank">
+                            <AccordionTrigger className="px-6">Fill in the Blank ({results.fillInTheBlankQuestions.length})</AccordionTrigger>
+                            <AccordionContent className="px-6 pb-6">
+                                <ul className="space-y-2 list-decimal list-inside">
+                                    {results.fillInTheBlankQuestions.map((q, i) => <li key={i}>{q}</li>)}
+                                </ul>
+                            </AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="match-the-column">
+                            <AccordionTrigger className="px-6">Match the Column ({results.matchTheColumnQuestions.length})</AccordionTrigger>
+                            <AccordionContent className="px-6 pb-6">
+                                <ul className="space-y-2 list-decimal list-inside">
+                                    {results.matchTheColumnQuestions.map((q, i) => <li key={i}>{q}</li>)}
+                                </ul>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+                </CardContent>
+                </Card>
+                </>
+            ) : (
+                <Card className="min-h-[400px] flex items-center justify-center">
+                    <p className="text-muted-foreground text-center p-4">
+                        Upload an image to generate questions.
+                    </p>
+                </Card>
+            )}
+            </div>
         </div>
       </div>
     </div>

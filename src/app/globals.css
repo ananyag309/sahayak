@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -81,6 +82,9 @@
   body {
     @apply bg-background text-foreground;
   }
+  .print-only-worksheet {
+    display: none;
+  }
 }
 
 @layer utilities {
@@ -104,8 +108,11 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .no-print, .no-print * {
+  .no-print, .screen-only {
     display: none !important;
+  }
+  .print-only-worksheet {
+    display: block !important;
   }
   .flashcard-print-container {
     display: grid !important;
