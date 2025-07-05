@@ -41,6 +41,15 @@ export default function SignupPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
+    if (!auth || !db) {
+       toast({
+        variant: "destructive",
+        title: "Firebase Not Configured",
+        description: "Please provide Firebase credentials in your .env file.",
+      });
+      setIsLoading(false);
+      return;
+    }
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;

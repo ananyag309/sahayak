@@ -109,7 +109,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <DropdownMenuContent side="right" align="start" className="w-56">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => auth.signOut()}>
+              <DropdownMenuItem onClick={() => auth?.signOut()} disabled={!auth}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

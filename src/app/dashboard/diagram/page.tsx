@@ -55,6 +55,14 @@ export default function DiagramPage() {
 
   const handleSaveDiagram = async () => {
     if (!diagramUrl || !user || !currentTopic) return;
+    if (!db) {
+      toast({
+        variant: "destructive",
+        title: "Save failed",
+        description: "Firebase is not configured. Please check your .env file.",
+      });
+      return;
+    }
     setIsSaving(true);
     try {
       await addDoc(collection(db, "diagrams"), {
@@ -128,7 +136,7 @@ export default function DiagramPage() {
                                     <Download className="mr-2 h-4 w-4"/> Download
                                 </a>
                             </Button>
-                            <Button className="flex-1" variant="outline" onClick={handleSaveDiagram} disabled={isSaving}>
+                            <Button className="flex-1" variant="outline" onClick={handleSaveDiagram} disabled={isSaving || !db}>
                                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                                 Save to Collection
                             </Button>
