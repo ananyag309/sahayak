@@ -52,7 +52,7 @@ export default function DiagramPage() {
       const result = await generateDiagram(input);
       const dataUri = result.diagramDataUri;
 
-      if (!isDemoMode && storage) {
+      if (!isDemoMode && storage && user) {
         const fetchRes = await fetch(dataUri);
         const blob = await fetchRes.blob();
 
@@ -154,7 +154,12 @@ export default function DiagramPage() {
                 <p className="text-muted-foreground">Your diagram will appear here.</p>
             </header>
             <Card className="min-h-[400px] flex items-center justify-center">
-                 {isLoading && <Loader2 className="h-8 w-8 animate-spin text-primary"/>}
+                 {isLoading && (
+                    <div className="flex flex-col items-center gap-4 text-center p-4">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary"/>
+                        <p className="text-muted-foreground">Generating your diagram...<br/>This can take a few moments.</p>
+                    </div>
+                 )}
                  {!isLoading && diagramUrl && (
                     <CardContent className="p-6 w-full">
                         <div className="relative aspect-square w-full rounded-lg overflow-hidden border">

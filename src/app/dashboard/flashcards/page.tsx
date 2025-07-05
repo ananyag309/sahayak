@@ -5,17 +5,15 @@ import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { generateFlashcards, type GenerateFlashcardsInput } from "@/ai/flows/flashcard-generator";
+import { generateFlashcards } from "@/ai/flows/flashcard-generator";
 import { ai } from "@/ai/genkit";
-import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FlipHorizontal, Printer, AlertTriangle } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2, FlipHorizontal, Printer } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 const formSchema = z.object({
@@ -35,7 +33,6 @@ type CardState = CardData & {
 };
 
 export default function FlashcardsPage() {
-  const { isDemoMode } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [cards, setCards] = useState<CardState[]>([]);
@@ -44,45 +41,52 @@ export default function FlashcardsPage() {
     resolver: zodResolver(formSchema),
     defaultValues: { topic: "", grade: "4" },
   });
+  
+  const generateCardImages = async (generatedCards: CardState[]) => {
+    await Promise.all(generatedCards.map(async (card, index) => {
+        try {
+            const { media } = await ai.generate({
+                model: 'googleai/gemini-2.0-flash-preview-image-generation',
+                prompt: `A simple, clear, child-friendly cartoon icon of: ${card.imagePrompt}`,
+                config: { responseModalities: ['TEXT', 'IMAGE'] },
+            });
+
+            if (media?.url) {
+                setCards(prev => {
+                    const newCards = [...prev];
+                    if (newCards[index]) {
+                        newCards[index].imageUrl = media.url;
+                    }
+                    return newCards;
+                });
+            }
+        } catch (imgError) {
+            console.error(`Image generation failed for: ${card.term}`, imgError);
+            // Optionally, we could set an error state on the card to show a broken image icon
+        }
+    }));
+  };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     setCards([]);
     try {
       const result = await generateFlashcards(values);
-      let initialCards = result.cards.map(c => ({ ...c, isFlipped: false }));
+      const initialCards = result.cards.map(c => ({ ...c, isFlipped: false, imageUrl: undefined }));
       setCards(initialCards);
+      setIsLoading(false); // Stop main loading indicator once text is ready
+      toast({ title: "Flashcards created!", description: "Generating images in the background..." });
 
-      // Generate images in parallel
-      await Promise.all(initialCards.map(async (card, index) => {
-        try {
-          const { media } = await ai.generate({
-            model: 'googleai/gemini-2.0-flash-preview-image-generation',
-            prompt: `A simple, clear, child-friendly cartoon icon of: ${card.imagePrompt}`,
-            config: { responseModalities: ['TEXT', 'IMAGE'] },
-          });
+      // Generate images without blocking the UI
+      generateCardImages(initialCards);
 
-          if (media?.url) {
-            setCards(prev => {
-              const newCards = [...prev];
-              newCards[index].imageUrl = media.url;
-              return newCards;
-            });
-          }
-        } catch (imgError) {
-          console.error(`Image generation failed for: ${card.term}`, imgError);
-        }
-      }));
-
-      toast({ title: "Flashcards generated successfully!" });
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "An error occurred",
         description: error.message || "Failed to generate flashcards.",
       });
-    } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Ensure loading stops on error
     }
   }
 
@@ -105,15 +109,6 @@ export default function FlashcardsPage() {
             <h1 className="text-3xl font-bold tracking-tight font-headline">Flashcard Creator</h1>
             <p className="text-muted-foreground">Generate flippable and printable flashcards for any topic.</p>
          </header>
-        {isDemoMode && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Image Generation Disabled</AlertTitle>
-            <AlertDescription>
-              Image generation for flashcards is not available in Demo Mode. Text-only cards will be created.
-            </AlertDescription>
-          </Alert>
-        )}
          <Card>
             <CardHeader><CardTitle>Create Flashcards</CardTitle></CardHeader>
             <CardContent>
@@ -150,7 +145,7 @@ export default function FlashcardsPage() {
         {isLoading && !cards.length && (
             <div className="text-center p-8">
                 <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary" />
-                <p className="mt-4 text-muted-foreground">Generating flashcards... this might take a moment.</p>
+                <p className="mt-4 text-muted-foreground">Generating flashcard text... this should be quick.</p>
             </div>
         )}
 
