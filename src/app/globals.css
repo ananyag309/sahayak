@@ -88,9 +88,6 @@
   body {
     @apply bg-background text-foreground;
   }
-  .print-only-worksheet {
-    display: none;
-  }
 }
 
 @layer utilities {
@@ -122,55 +119,6 @@
   .no-print, .screen-only {
     display: none !important;
   }
-
-  /* == Worksheet Styles == */
-  .print-only-worksheet {
-    display: block !important;
-    font-family: "Times New Roman", Times, serif;
-    font-size: 12pt;
-    color: #000;
-  }
-  .print-only-worksheet h1 {
-    font-size: 20pt;
-    font-weight: bold;
-    margin-bottom: 2rem;
-  }
-  .print-only-worksheet .worksheet-header {
-    font-size: 11pt;
-    margin-bottom: 2rem;
-  }
-  .print-only-worksheet h2 {
-    font-size: 14pt;
-    font-weight: bold;
-    margin-top: 1.5rem;
-    margin-bottom: 1rem;
-    border-bottom: 1px solid #000;
-    padding-bottom: 0.25rem;
-  }
-  .print-only-worksheet ol {
-    padding-left: 1.5rem;
-  }
-  .print-only-worksheet li {
-    padding-bottom: 0.75rem;
-  }
-  .print-only-worksheet .worksheet-columns {
-    display: flex;
-    justify-content: space-between;
-    gap: 2rem;
-    margin-top: 1rem;
-  }
-  .print-only-worksheet .worksheet-column {
-    width: 48%;
-  }
-  .print-only-worksheet .worksheet-column h3 {
-    font-size: 12pt;
-    font-weight: bold;
-    margin-bottom: 0.5rem;
-  }
-  .print-only-worksheet .worksheet-column ol li {
-    padding-bottom: 1rem;
-  }
-
 
   /* == Flashcard Styles == */
   .flashcard-print-container {

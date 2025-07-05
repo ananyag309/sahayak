@@ -32,6 +32,7 @@ const TextbookScannerOutputSchema = z.object({
   fillInTheBlankQuestions: z
     .array(z.string())
     .describe('A list of fill-in-the-blank questions. Use underscores `___` for the blank part.'),
+  shortAnswerQuestions: z.array(z.string()).describe("A list of short answer questions that require a brief written response."),
   matchTheColumnQuestions: z.array(MatchPairSchema).describe('An array of objects for a matching exercise, where each object has a "term" and a corresponding "definition".'),
 });
 export type TextbookScannerOutput = z.infer<typeof TextbookScannerOutputSchema>;
@@ -46,11 +47,12 @@ const prompt = ai.definePrompt({
   output: {schema: TextbookScannerOutputSchema},
   prompt: `You are a teacher's assistant that helps generate questions from textbook images.
 
-  Analyze the content from the image provided. Based on the text, generate three types of questions suitable for the specified grade level.
+  Analyze the content from the image provided. Based on the text, generate a comprehensive worksheet suitable for the specified grade level. Create at least 2-3 questions for each category if the text allows.
 
   1.  **Multiple Choice Questions:** Create several multiple-choice questions.
   2.  **Fill in the Blank:** Create several fill-in-the-blank sentences. Use underscores like \`___\` to indicate the blank.
-  3.  **Match the Column:** Create several pairs of terms and their corresponding definitions. Format this as an array of objects, with each object having a 'term' key and a 'definition' key.
+  3.  **Short Answer Questions:** Create a few questions that require a brief written response (1-2 sentences).
+  4.  **Match the Column:** Create several pairs of terms and their corresponding definitions. Format this as an array of objects, with each object having a 'term' key and a 'definition' key.
 
   The questions must be based *only* on the text visible in the image.
 

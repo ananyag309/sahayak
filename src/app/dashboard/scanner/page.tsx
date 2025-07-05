@@ -13,13 +13,14 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Printer } from "lucide-react";
+import { Loader2, Upload, Download } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useAuth } from "@/components/auth-provider";
 import { db, storage } from "@/lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { cn } from "@/lib/utils";
+import jsPDF from 'jspdf';
 
 
 const formSchema = z.object({
@@ -69,9 +70,128 @@ export default function ScannerPage() {
     });
   }
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handleDownloadPdf = () => {
+    if (!results) {
+        toast({ variant: "destructive", title: "No results to download." });
+        return;
+    }
+    
+    const doc = new jsPDF();
+    const pageHeight = doc.internal.pageSize.height;
+    const pageWidth = doc.internal.pageSize.width;
+    const margin = 15;
+    let y = 20;
+
+    const checkPageBreak = (neededHeight: number) => {
+        if (y + neededHeight > pageHeight - margin) {
+            doc.addPage();
+            y = margin;
+        }
+    };
+    
+    // Header
+    doc.setFontSize(20).setFont('helvetica', 'bold');
+    doc.text("Sahayak AI Worksheet", pageWidth / 2, y, { align: 'center' });
+    y += 12;
+
+    doc.setFontSize(11).setFont('helvetica', 'normal');
+    doc.text(`Name: _________________________`, margin, y);
+    doc.text(`Date: ____________________`, pageWidth - margin, y, { align: 'right' });
+    y += 7;
+    doc.text(`Grade: ${form.getValues('gradeLevel') || '______'}`, margin, y);
+    y += 7;
+
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 10;
+    
+    // Sections
+    let questionCounter = 1;
+    const addSection = (title: string, questions: string[]) => {
+      if (!questions || questions.length === 0) return;
+
+      checkPageBreak(12);
+      doc.setFontSize(14).setFont('helvetica', 'bold');
+      doc.text(title, margin, y);
+      y += 8;
+      doc.setFontSize(11).setFont('helvetica', 'normal');
+
+      questions.forEach((q) => {
+        const questionText = `${questionCounter}. ${q}`;
+        const splitText = doc.splitTextToSize(questionText, pageWidth - (margin * 2));
+        const neededHeight = (splitText.length * 5) + 5;
+        checkPageBreak(neededHeight);
+        doc.text(splitText, margin, y);
+        y += neededHeight;
+        questionCounter++;
+      });
+      y+= 5;
+    };
+    
+    addSection("A. Multiple Choice Questions", results.mcqQuestions);
+    questionCounter = 1;
+    addSection("B. Fill in the Blanks", results.fillInTheBlankQuestions);
+    questionCounter = 1;
+    addSection("C. Short Answer Questions", results.shortAnswerQuestions);
+
+    // Match the Columns Section
+    if (results.matchTheColumnQuestions && results.matchTheColumnQuestions.length > 0) {
+        checkPageBreak(20);
+        doc.setFontSize(14).setFont('helvetica', 'bold');
+        doc.text("D. Match the Columns", margin, y);
+        y += 8;
+        doc.setFontSize(11).setFont('helvetica', 'normal');
+        doc.text("Match the term in Column A with its definition in Column B.", margin, y);
+        y += 8;
+
+        const shuffledDefs = shuffleArray(results.matchTheColumnQuestions);
+        const colAstartX = margin;
+        const colBstartX = pageWidth / 2 + 5;
+        const tableStartY = y;
+
+        // Draw Column A
+        doc.setFont('helvetica', 'bold');
+        doc.text("Column A", colAstartX, y);
+        y += 6;
+        doc.setFont('helvetica', 'normal');
+        let colA_Y = y;
+        results.matchTheColumnQuestions.forEach((pair, index) => {
+            const text = `${index + 1}. ${pair.term}`;
+            const split = doc.splitTextToSize(text, (pageWidth / 2) - margin - 5);
+            const height = split.length * 5 + 4;
+            checkPageBreak(height);
+            if (y !== colA_Y) { // New page
+                colA_Y = y;
+                tableStartY = y - 6;
+            }
+            doc.text(split, colAstartX, colA_Y);
+            colA_Y += height;
+        });
+
+        // Draw Column B
+        doc.setFont('helvetica', 'bold');
+        doc.text("Column B", colBstartX, tableStartY);
+        y = tableStartY + 6;
+        doc.setFont('helvetica', 'normal');
+        let colB_Y = y;
+         shuffledDefs.forEach((pair, index) => {
+            const text = `${String.fromCharCode(97 + index)}. ${pair.definition}`;
+            const split = doc.splitTextToSize(text, (pageWidth / 2) - margin - 5);
+            const height = split.length * 5 + 4;
+            checkPageBreak(height);
+            if (y !== colB_Y) { // New page
+                 colB_Y = y;
+            }
+            doc.text(split, colBstartX, colB_Y);
+            colB_Y += height;
+        });
+
+        y = Math.max(colA_Y, colB_Y);
+    }
+    
+    doc.save(`sahayak-worksheet-grade-${form.getValues('gradeLevel')}.pdf`);
+    toast({ title: "PDF Download Started!" });
+  }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
@@ -119,7 +239,7 @@ export default function ScannerPage() {
       <div className="flex flex-col gap-4 no-print">
         <header>
           <h1 className="text-3xl font-bold tracking-tight font-headline">Textbook Scanner</h1>
-          <p className="text-muted-foreground">Upload a photo of a textbook page to generate questions.</p>
+          <p className="text-muted-foreground">Upload a photo of a textbook page to generate a downloadable PDF worksheet.</p>
         </header>
         <Card>
           <CardHeader>
@@ -192,58 +312,6 @@ export default function ScannerPage() {
       </div>
 
       <div className="flex flex-col gap-4">
-        {/* Printable Worksheet - only visible for printing */}
-        {results && (
-            <div className="print-only-worksheet">
-                <div className="text-center">
-                    <h1>Worksheet</h1>
-                    <p className="worksheet-header">Name: _________________________ &nbsp;&nbsp;&nbsp;&nbsp; Date: _________________________</p>
-                </div>
-                <div className="space-y-8">
-                    {results.mcqQuestions.length > 0 && (
-                        <div>
-                            <h2>A. Multiple Choice Questions</h2>
-                            <ol>
-                                {results.mcqQuestions.map((q, i) => <li key={`mcq-print-${i}`}>{q}</li>)}
-                            </ol>
-                        </div>
-                    )}
-                    {results.fillInTheBlankQuestions.length > 0 && (
-                        <div>
-                            <h2>B. Fill in the Blanks</h2>
-                            <ol>
-                                {results.fillInTheBlankQuestions.map((q, i) => <li key={`fib-print-${i}`}>{q}</li>)}
-                            </ol>
-                        </div>
-                    )}
-                    {results.matchTheColumnQuestions.length > 0 && (
-                        <div>
-                            <h2>C. Match the Columns</h2>
-                            <p>Match the term in Column A with the correct definition in Column B.</p>
-                            <div className="worksheet-columns">
-                                <div className="worksheet-column">
-                                    <h3>Column A</h3>
-                                    <ol>
-                                        {results.matchTheColumnQuestions.map((q, i) => (
-                                            <li key={`match-a-print-${i}`}>{q.term}</li>
-                                        ))}
-                                    </ol>
-                                </div>
-                                <div className="worksheet-column">
-                                    <h3>Column B</h3>
-                                    <ol type="a">
-                                        {shuffleArray(results.matchTheColumnQuestions.map(q => q.definition)).map((q, i) => (
-                                            <li key={`match-b-print-${i}`}>{q}</li>
-                                        ))}
-                                    </ol>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        )}
-
         {/* On-screen interactive view */}
         <div className="screen-only flex flex-col gap-4 flex-1">
             <header>
@@ -252,16 +320,18 @@ export default function ScannerPage() {
             </header>
             <div className="flex-1">
             {isLoading ? (
-                <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary"/></div>
+                <Card className="min-h-[400px] flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary"/>
+                </Card>
             ) : results ? (
                 <>
                 <div className="flex justify-end mb-4">
-                    <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4"/> Print Worksheet</Button>
+                    <Button onClick={handleDownloadPdf}><Download className="mr-2 h-4 w-4"/> Download PDF</Button>
                 </div>
                 <Card>
                 <CardContent className="p-0">
                     <Accordion type="single" collapsible className="w-full" defaultValue="mcq">
-                        {results.mcqQuestions.length > 0 && (
+                        {results.mcqQuestions?.length > 0 && (
                             <AccordionItem value="mcq">
                                 <AccordionTrigger className="px-6">Multiple Choice Questions ({results.mcqQuestions.length})</AccordionTrigger>
                                 <AccordionContent className="px-6 pb-6">
@@ -271,7 +341,17 @@ export default function ScannerPage() {
                                 </AccordionContent>
                             </AccordionItem>
                         )}
-                        {results.fillInTheBlankQuestions.length > 0 && (
+                         {results.shortAnswerQuestions?.length > 0 && (
+                            <AccordionItem value="short-answer">
+                                <AccordionTrigger className="px-6">Short Answer ({results.shortAnswerQuestions.length})</AccordionTrigger>
+                                <AccordionContent className="px-6 pb-6">
+                                    <ul className="space-y-2 list-decimal list-inside">
+                                        {results.shortAnswerQuestions.map((q, i) => <li key={`sa-screen-${i}`}>{q}</li>)}
+                                    </ul>
+                                </AccordionContent>
+                            </AccordionItem>
+                        )}
+                        {results.fillInTheBlankQuestions?.length > 0 && (
                             <AccordionItem value="fill-in-the-blank">
                                 <AccordionTrigger className="px-6">Fill in the Blank ({results.fillInTheBlankQuestions.length})</AccordionTrigger>
                                 <AccordionContent className="px-6 pb-6">
@@ -281,7 +361,7 @@ export default function ScannerPage() {
                                 </AccordionContent>
                             </AccordionItem>
                         )}
-                        {results.matchTheColumnQuestions.length > 0 && (
+                        {results.matchTheColumnQuestions?.length > 0 && (
                             <AccordionItem value="match-the-column">
                                 <AccordionTrigger className="px-6">Match the Column ({results.matchTheColumnQuestions.length})</AccordionTrigger>
                                 <AccordionContent className="px-6 pb-6">
