@@ -40,6 +40,11 @@ export default function SignupPage() {
     },
   });
 
+  const handleDemoMode = () => {
+    sessionStorage.setItem('isDemoMode', 'true');
+    router.push('/dashboard');
+  };
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     if (!isFirebaseConfigured || !auth || !db) {
@@ -92,7 +97,7 @@ export default function SignupPage() {
             <Alert variant="destructive" className="mb-4">
                 <AlertTitle>Firebase Not Configured</AlertTitle>
                 <AlertDescription>
-                  Please add your Firebase credentials to your <code>.env</code> file, or continue in demo mode.
+                  Add your credentials to <code>.env</code> or continue in demo mode.
                 </AlertDescription>
             </Alert>
         )}
@@ -105,7 +110,7 @@ export default function SignupPage() {
                 <FormItem>
                   <FormLabel>Full Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="John Doe" {...field} />
+                    <Input placeholder="John Doe" {...field} disabled={!isFirebaseConfigured} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -118,7 +123,7 @@ export default function SignupPage() {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="name@example.com" {...field} />
+                    <Input placeholder="name@example.com" {...field} disabled={!isFirebaseConfigured} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -131,7 +136,7 @@ export default function SignupPage() {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
+                    <Input type="password" placeholder="••••••••" {...field} disabled={!isFirebaseConfigured} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -143,7 +148,7 @@ export default function SignupPage() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Preferred Language</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!isFirebaseConfigured}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a language" />
@@ -167,7 +172,7 @@ export default function SignupPage() {
           </form>
         </Form>
         {!isFirebaseConfigured && (
-            <Button variant="secondary" className="w-full mt-4" onClick={() => router.push('/dashboard')}>
+            <Button variant="secondary" className="w-full mt-4" onClick={handleDemoMode}>
                 Continue in Demo Mode
             </Button>
         )}

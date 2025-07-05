@@ -63,8 +63,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [user, loading, router]);
 
+  const handleSignOut = () => {
+    sessionStorage.removeItem('isDemoMode'); // Clear demo mode flag
+    if (auth) {
+        auth.signOut();
+    } else {
+        // In demo mode, auth is null, so we redirect manually.
+        // AuthProvider will clear the mock user on the next render because the flag is gone.
+        router.push('/login');
+    }
+  };
+
   if (loading || !user) {
-    return null; // Or a loading spinner, but AuthProvider already shows one
+    return null; // Or a loading spinner
   }
   
   const getInitials = (name: string | null | undefined) => {
@@ -109,7 +120,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <DropdownMenuContent side="right" align="start" className="w-56">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => auth?.signOut()} disabled={!auth}>
+              <DropdownMenuItem onClick={handleSignOut}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

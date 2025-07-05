@@ -34,6 +34,11 @@ export default function LoginPage() {
     },
   });
 
+  const handleDemoMode = () => {
+    sessionStorage.setItem('isDemoMode', 'true');
+    router.push('/dashboard');
+  };
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     if (!isFirebaseConfigured || !auth) {
@@ -74,7 +79,7 @@ export default function LoginPage() {
           <Alert variant="destructive" className="mb-4">
             <AlertTitle>Firebase Not Configured</AlertTitle>
             <AlertDescription>
-              Please add your Firebase credentials to your <code>.env</code> file, or continue in demo mode.
+              Add your credentials to <code>.env</code> or continue in demo mode.
             </AlertDescription>
           </Alert>
         )}
@@ -87,7 +92,7 @@ export default function LoginPage() {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="name@example.com" {...field} />
+                    <Input placeholder="name@example.com" {...field} disabled={!isFirebaseConfigured} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -100,7 +105,7 @@ export default function LoginPage() {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
+                    <Input type="password" placeholder="••••••••" {...field} disabled={!isFirebaseConfigured}/>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -113,7 +118,7 @@ export default function LoginPage() {
           </form>
         </Form>
         {!isFirebaseConfigured && (
-            <Button variant="secondary" className="w-full mt-4" onClick={() => router.push('/dashboard')}>
+            <Button variant="secondary" className="w-full mt-4" onClick={handleDemoMode}>
                 Continue in Demo Mode
             </Button>
         )}
