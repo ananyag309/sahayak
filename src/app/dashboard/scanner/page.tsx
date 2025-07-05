@@ -134,7 +134,8 @@ export default function ScannerPage() {
             return false;
         };
         
-        doc.setFontSize(20).setFont(config.fontName, isCustomFont ? 'normal' : 'bold');
+        doc.setFontSize(20);
+        if (!isCustomFont) doc.setFont(config.fontName, 'bold');
         doc.text("Sahayak AI Worksheet", pageWidth / 2, y, { align: 'center' });
         y += 12;
 
@@ -154,7 +155,8 @@ export default function ScannerPage() {
           if (!questions || questions.length === 0) return;
 
           checkPageBreak(12);
-          doc.setFontSize(14).setFont(config.fontName, isCustomFont ? 'normal' : 'bold');
+          doc.setFontSize(14);
+          if (!isCustomFont) doc.setFont(config.fontName, 'bold');
           doc.text(title, margin, y);
           y += 8;
           doc.setFontSize(11).setFont(config.fontName, 'normal');
@@ -179,7 +181,8 @@ export default function ScannerPage() {
 
         if (results.matchTheColumnQuestions && results.matchTheColumnQuestions.length > 0) {
             checkPageBreak(20);
-            doc.setFontSize(14).setFont(config.fontName, isCustomFont ? 'normal' : 'bold');
+            doc.setFontSize(14);
+            if (!isCustomFont) doc.setFont(config.fontName, 'bold');
             doc.text("D. Match the Columns", margin, y);
             y += 8;
             doc.setFontSize(11).setFont(config.fontName, 'normal');
@@ -197,8 +200,8 @@ export default function ScannerPage() {
             const rowPadding = 4;
             
             const drawHeader = () => {
-                doc.setFont(config.fontName, isCustomFont ? 'normal' : 'bold');
                 doc.setFontSize(12);
+                if (!isCustomFont) doc.setFont(config.fontName, 'bold');
                 doc.text("Column A", colAstartX, y);
                 doc.text("Column B", colBstartX, y);
                 y += rowLineHeight + rowPadding;
@@ -473,5 +476,3 @@ export default function ScannerPage() {
     </div>
   );
 }
-
-    
