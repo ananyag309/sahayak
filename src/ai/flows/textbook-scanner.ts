@@ -22,14 +22,17 @@ const TextbookScannerInputSchema = z.object({
 });
 export type TextbookScannerInput = z.infer<typeof TextbookScannerInputSchema>;
 
+const MatchPairSchema = z.object({
+    term: z.string().describe("The term or item for the first column."),
+    definition: z.string().describe("The corresponding definition or item for the second column."),
+});
+
 const TextbookScannerOutputSchema = z.object({
-  mcqQuestions: z.array(z.string()).describe('Multiple choice questions generated from the text.'),
+  mcqQuestions: z.array(z.string()).describe('A list of multiple choice questions based on the text.'),
   fillInTheBlankQuestions: z
     .array(z.string())
-    .describe('Fill in the blank questions generated from the text.'),
-  matchTheColumnQuestions: z
-    .array(z.string())
-    .describe('Match the column questions generated from the text.'),
+    .describe('A list of fill-in-the-blank questions. Use underscores `___` for the blank part.'),
+  matchTheColumnQuestions: z.array(MatchPairSchema).describe('A list of term/definition pairs for a matching exercise.'),
 });
 export type TextbookScannerOutput = z.infer<typeof TextbookScannerOutputSchema>;
 
@@ -43,9 +46,15 @@ const prompt = ai.definePrompt({
   output: {schema: TextbookScannerOutputSchema},
   prompt: `You are a teacher's assistant that helps generate questions from textbook images.
 
-  Generate multiple choice, fill in the blank, and match the column questions based on the textbook content in the image provided.
-  The textbook is for grade level: {{{gradeLevel}}}
+  Analyze the content from the image provided. Based on the text, generate three types of questions suitable for the specified grade level.
 
+  1.  **Multiple Choice Questions:** Create several multiple-choice questions.
+  2.  **Fill in the Blank:** Create several fill-in-the-blank sentences. Use underscores like \`___\` to indicate the blank.
+  3.  **Match the Column:** Create several pairs of terms and their corresponding definitions.
+
+  The questions must be based *only* on the text visible in the image.
+
+  Grade Level: {{{gradeLevel}}}
   Image:
   {{media url=photoDataUri}}
   `,

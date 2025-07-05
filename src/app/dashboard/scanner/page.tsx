@@ -27,6 +27,17 @@ const formSchema = z.object({
   gradeLevel: z.string().min(1, { message: "Please select a grade level." }),
 });
 
+// Helper to shuffle array for the matching game
+const shuffleArray = (array: any[]) => {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+};
+
+
 export default function ScannerPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -207,9 +218,25 @@ export default function ScannerPage() {
                     {results.matchTheColumnQuestions.length > 0 && (
                         <div>
                             <h2>C. Match the Columns</h2>
-                             <ol>
-                                  {results.matchTheColumnQuestions.map((q, i) => <li key={`match-print-${i}`}>{q}</li>)}
-                              </ol>
+                            <p>Match the term in Column A with the correct definition in Column B.</p>
+                            <div className="worksheet-columns">
+                                <div className="worksheet-column">
+                                    <h3>Column A</h3>
+                                    <ol>
+                                        {results.matchTheColumnQuestions.map((q, i) => (
+                                            <li key={`match-a-print-${i}`}>{q.term}</li>
+                                        ))}
+                                    </ol>
+                                </div>
+                                <div className="worksheet-column">
+                                    <h3>Column B</h3>
+                                    <ol type="a">
+                                        {shuffleArray(results.matchTheColumnQuestions.map(q => q.definition)).map((q, i) => (
+                                            <li key={`match-b-print-${i}`}>{q}</li>
+                                        ))}
+                                    </ol>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -252,9 +279,22 @@ export default function ScannerPage() {
                         <AccordionItem value="match-the-column">
                             <AccordionTrigger className="px-6">Match the Column ({results.matchTheColumnQuestions.length})</AccordionTrigger>
                             <AccordionContent className="px-6 pb-6">
-                                <ul className="space-y-2 list-decimal list-inside">
-                                    {results.matchTheColumnQuestions.map((q, i) => <li key={i}>{q}</li>)}
-                                </ul>
+                                <table className="w-full text-left">
+                                    <thead>
+                                    <tr>
+                                        <th className="p-2 border-b font-semibold">Term</th>
+                                        <th className="p-2 border-b font-semibold">Definition</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {results.matchTheColumnQuestions.map((pair, i) => (
+                                        <tr key={`match-pair-${i}`}>
+                                            <td className="p-2 border-b align-top">{pair.term}</td>
+                                            <td className="p-2 border-b align-top">{pair.definition}</td>
+                                        </tr>
+                                    ))}
+                                    </tbody>
+                                </table>
                             </AccordionContent>
                         </AccordionItem>
                     </Accordion>
