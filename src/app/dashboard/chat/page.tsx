@@ -48,6 +48,7 @@ export default function ChatPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
 
   const recognitionRef = useRef<any>(null);
@@ -70,13 +71,27 @@ export default function ChatPage() {
         });
     }
   }, [messages]);
-
+  
+  // Effect for setting up Speech Synthesis (Text-to-Speech)
   useEffect(() => {
-    // Pre-load speech synthesis voices
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.getVoices();
-    }
+    if (!('speechSynthesis' in window)) return;
     
+    const handleVoicesChanged = () => {
+        setVoices(window.speechSynthesis.getVoices());
+    };
+
+    // Voices are loaded asynchronously
+    window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+    handleVoicesChanged(); // For browsers that load them synchronously
+
+    return () => {
+        window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+        window.speechSynthesis.cancel();
+    };
+  }, []);
+
+  // Effect for setting up Speech Recognition (Speech-to-Text)
+  useEffect(() => {
     try {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
@@ -117,9 +132,6 @@ export default function ChatPage() {
     return () => {
         if (recognitionRef.current) {
             recognitionRef.current.stop();
-        }
-        if (window.speechSynthesis) {
-          window.speechSynthesis.cancel();
         }
     }
   }, [form, toast]);
@@ -188,23 +200,28 @@ export default function ChatPage() {
       setSpeakingMessageId(null);
       return;
     }
-
+    
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(message.content);
     const langMap: Record<string, string> = { en: 'en-US', hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN' };
+    const targetLang = langMap[message.language] || 'en-US';
     
-    if (message.language && langMap[message.language]) {
-        utterance.lang = langMap[message.language];
+    utterance.lang = targetLang;
+    
+    // Find the best voice. Prioritize exact match, then language prefix match.
+    const voice = voices.find(v => v.lang === targetLang) || voices.find(v => v.lang.startsWith(message.language));
+    
+    if (voice) {
+      utterance.voice = voice;
+    } else {
+        console.warn(`No voice found for language: ${targetLang}. Using browser default.`);
     }
-    
-    const voices = window.speechSynthesis.getVoices();
-    const voice = voices.find(v => v.lang === utterance.lang);
-    if (voice) utterance.voice = voice;
     
     utterance.onend = () => setSpeakingMessageId(null);
     utterance.onerror = (e) => {
-      toast({ variant: 'destructive', title: 'Speech Error', description: `Could not play audio. ${e.error}` });
+      console.error("Speech synthesis error", e);
+      toast({ variant: 'destructive', title: 'Speech Error', description: `Could not play audio. Your browser may not support this language.` });
       setSpeakingMessageId(null);
     };
 
