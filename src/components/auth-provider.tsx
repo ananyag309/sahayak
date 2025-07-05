@@ -24,30 +24,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    // This effect runs when the component mounts or the path changes.
-    // This allows us to re-evaluate the auth state, especially for demo mode.
+    const inDemoMode = sessionStorage.getItem('isDemoMode') === 'true';
+
+    if (inDemoMode) {
+      console.warn("In Demo Mode. Using a mock user for UI preview.");
+      const mockUser = {
+        uid: 'mock-user-uid',
+        displayName: 'Demo User',
+        email: 'demo@example.com',
+        photoURL: null,
+      } as User;
+      setUser(mockUser);
+      setLoading(false);
+      return; // Exit early, do not set up Firebase listener.
+    }
+
     if (isFirebaseConfigured && auth) {
       const unsubscribe = onAuthStateChanged(auth, (user) => {
-        sessionStorage.removeItem('isDemoMode');
         setUser(user);
         setLoading(false);
       });
       return () => unsubscribe();
     } else {
-      // Firebase is not configured. We check for a session flag to enter demo mode.
-      const inDemoMode = sessionStorage.getItem('isDemoMode') === 'true';
-      if (inDemoMode) {
-          console.warn("Firebase not configured. Using a mock user for UI preview.");
-          const mockUser = {
-            uid: 'mock-user-uid',
-            displayName: 'Demo User',
-            email: 'demo@example.com',
-            photoURL: null,
-          } as User;
-          setUser(mockUser);
-      } else {
-          setUser(null);
-      }
+      // Firebase is not configured and we're not in demo mode.
+      setUser(null);
       setLoading(false);
     }
   }, [pathname]);

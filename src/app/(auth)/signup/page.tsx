@@ -197,10 +197,10 @@ export default function SignupPage() {
       </CardHeader>
       <CardContent>
         {!isFirebaseConfigured && (
-            <Alert variant="destructive" className="mb-4">
+            <Alert className="mb-4">
                 <AlertTitle>Firebase Not Configured</AlertTitle>
                 <AlertDescription>
-                  Add your credentials to <code>.env</code> or continue in demo mode.
+                  Real sign-up is disabled. Please use the "Continue in Demo Mode" button to explore the app.
                 </AlertDescription>
             </Alert>
         )}
@@ -297,11 +297,11 @@ export default function SignupPage() {
           )}
           Google
         </Button>
-        {!isFirebaseConfigured && (
-            <Button variant="secondary" className="w-full mt-4" onClick={handleDemoMode}>
-                Continue in Demo Mode
-            </Button>
-        )}
+        
+        <Button variant="secondary" className="w-full mt-4" onClick={handleDemoMode}>
+            Continue in Demo Mode
+        </Button>
+        
         <div className="mt-4 text-center text-sm">
           Already have an account?{" "}
           <Link href="/login" className="underline hover:text-primary">
