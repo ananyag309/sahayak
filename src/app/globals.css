@@ -82,3 +82,55 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+  .transform-style-3d {
+    transform-style: preserve-3d;
+  }
+  .backface-hidden {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+}
+
+@media print {
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .no-print, .no-print * {
+    display: none !important;
+  }
+  .flashcard-print-container {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 16px !important;
+    page-break-before: auto !important;
+    page-break-after: auto !important;
+  }
+  .flashcard-print-item {
+    border: 1px solid #ccc !important;
+    border-radius: 8px !important;
+    height: 224px !important;
+    page-break-inside: avoid !important;
+    transform: none !important;
+  }
+  .flashcard-print-item > div {
+    transform: none !important;
+    position: relative !important;
+    display: flex !important;
+  }
+  .flashcard-print-item .backface-hidden {
+    backface-visibility: visible !important;
+  }
+  /* This is a trick: We print both front and back on the page */
+  .flashcard-print-item > div {
+    display: block !important;
+  }
+}

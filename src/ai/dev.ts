@@ -6,3 +6,5 @@ import '@/ai/flows/textbook-scanner.ts';
 import '@/ai/flows/lesson-planner.ts';
 import '@/ai/flows/diagram-generator.ts';
 import '@/ai/flows/game-generator.ts';
+import '@/ai/flows/flashcard-generator.ts';
+import '@/ai/flows/reading-assessor.ts';
