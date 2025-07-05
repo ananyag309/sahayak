@@ -15,7 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Download, Loader2, Mic, Paperclip, Send, User, X, AlertCircle, RefreshCw } from "lucide-react";
+import { Copy, Download, Loader2, Mic, Paperclip, Send, User, X, AlertCircle, RefreshCw, Volume2, VolumeX } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { db, storage } from "@/lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
@@ -31,6 +31,7 @@ type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  language: "en" | "hi" | "mr" | "ta";
   imageUrl?: string | null;
   isError?: boolean;
   inputData?: AIChatInput;
@@ -46,6 +47,8 @@ export default function ChatPage() {
   const [isListening, setIsListening] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+
 
   const recognitionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -69,6 +72,11 @@ export default function ChatPage() {
   }, [messages]);
 
   useEffect(() => {
+    // Pre-load speech synthesis voices
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.getVoices();
+    }
+    
     try {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
@@ -110,6 +118,9 @@ export default function ChatPage() {
         if (recognitionRef.current) {
             recognitionRef.current.stop();
         }
+        if (window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+        }
     }
   }, [form, toast]);
 
@@ -121,7 +132,7 @@ export default function ChatPage() {
         setIsListening(false); 
       } else {
         try {
-            const langMap = { en: 'en-US', hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN' };
+            const langMap: Record<string, string> = { en: 'en-US', hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN' };
             recognition.lang = langMap[form.getValues('language')];
             recognition.start();
         } catch (err) {
@@ -166,6 +177,42 @@ export default function ChatPage() {
     toast({ title: "Download started!" });
   };
 
+  const handleSpeak = (message: Message) => {
+    if (!('speechSynthesis' in window)) {
+      toast({ variant: 'destructive', title: 'Feature Not Supported', description: 'Your browser does not support text-to-speech.' });
+      return;
+    }
+
+    if (speakingMessageId === message.id) {
+      window.speechSynthesis.cancel();
+      setSpeakingMessageId(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(message.content);
+    const langMap: Record<string, string> = { en: 'en-US', hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN' };
+    
+    if (message.language && langMap[message.language]) {
+        utterance.lang = langMap[message.language];
+    }
+    
+    const voices = window.speechSynthesis.getVoices();
+    const voice = voices.find(v => v.lang === utterance.lang);
+    if (voice) utterance.voice = voice;
+    
+    utterance.onend = () => setSpeakingMessageId(null);
+    utterance.onerror = (e) => {
+      toast({ variant: 'destructive', title: 'Speech Error', description: `Could not play audio. ${e.error}` });
+      setSpeakingMessageId(null);
+    };
+
+    setSpeakingMessageId(message.id);
+    window.speechSynthesis.speak(utterance);
+  };
+
+
   const handleAiSubmission = async (input: AIChatInput, userMessageId: string) => {
     setIsSubmitting(true);
     const assistantTypingId = 'assistant-typing-indicator';
@@ -175,9 +222,9 @@ export default function ChatPage() {
       role: 'assistant',
       content: '',
       isTyping: true,
+      language: input.language,
     };
     
-    // Add typing indicator, and mark user message as not an error (for retries)
     setMessages(prev => [
       ...prev.map(m => m.id === userMessageId ? { ...m, isError: false } : m),
       assistantTypingMessage
@@ -190,9 +237,9 @@ export default function ChatPage() {
         id: `assistant-${Date.now()}`,
         role: "assistant",
         content: result.response,
+        language: input.language,
       };
       
-      // Replace the typing indicator with the actual response
       setMessages(prev => [
         ...prev.filter(m => m.id !== assistantTypingId),
         assistantMessage
@@ -204,7 +251,6 @@ export default function ChatPage() {
         title: "Failed to fetch response",
         description: "Please try again.",
       });
-      // Mark the user's message as having an error and remove the typing indicator
       setMessages(prev =>
         prev.filter(m => m.id !== assistantTypingId)
           .map(m => m.id === userMessageId ? { ...m, isError: true } : m)
@@ -226,9 +272,8 @@ export default function ChatPage() {
       imageDataUri: imagePreview ?? undefined,
     };
     
-    // For new submissions, get a persistent URL for Firestore.
     let publicImageUrl: string | null = null;
-    if (imageFile && user && user.uid !== 'demo-user' && storage && imagePreview) {
+    if (imageFile && user && storage && imagePreview) {
       const storageRef = ref(storage, `chatImages/${user.uid}/${Date.now()}_${imageFile.name}`);
       const uploadResult = await uploadString(storageRef, imagePreview, 'data_url');
       publicImageUrl = await getDownloadURL(uploadResult.ref);
@@ -241,6 +286,7 @@ export default function ChatPage() {
       content: values.question,
       imageUrl: imagePreview,
       inputData: input,
+      language: values.language,
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -256,8 +302,6 @@ export default function ChatPage() {
             imageUrl: publicImageUrl,
             language: input.language,
             createdAt: serverTimestamp(),
-            // Storing response is now tricky as it's not available here.
-            // Consider logging prompt and getting response later or simplifying logging.
         }).catch(err => console.error("Error saving to Firestore", err));
     }
   }
@@ -324,11 +368,14 @@ export default function ChatPage() {
 
                       {message.role === "assistant" && (
                         <div className="flex gap-2 mt-2">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(message.content)}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(message.content)} aria-label="Copy response">
                             <Copy className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownload(message.content)}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownload(message.content)} aria-label="Download response">
                             <Download className="h-4 w-4" />
+                          </Button>
+                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleSpeak(message)} aria-label={speakingMessageId === message.id ? 'Stop speaking' : 'Listen to message'}>
+                            {speakingMessageId === message.id ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                           </Button>
                         </div>
                       )}
@@ -353,6 +400,7 @@ export default function ChatPage() {
                         size="icon"
                         className="absolute top-1 right-1 h-6 w-6 rounded-full"
                         onClick={removeImage}
+                        aria-label="Remove image"
                     >
                         <X className="h-4 w-4" />
                     </Button>
@@ -361,7 +409,7 @@ export default function ChatPage() {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-start gap-2">
                 <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} className="hidden" />
-                 <Button type="button" variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isSubmitting}>
+                 <Button type="button" variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isSubmitting} aria-label="Attach image">
                     <Paperclip className="h-4 w-4" />
                 </Button>
                 <FormField
@@ -396,10 +444,10 @@ export default function ChatPage() {
                     </FormItem>
                   )}
                 />
-                 <Button type="button" variant="outline" size="icon" onClick={handleMicClick} disabled={isSubmitting} className={cn(isListening && 'bg-destructive text-destructive-foreground animate-pulse')}>
+                 <Button type="button" variant="outline" size="icon" onClick={handleMicClick} disabled={isSubmitting} className={cn(isListening && 'bg-destructive text-destructive-foreground animate-pulse')} aria-label={isListening ? "Stop recording" : "Start recording"}>
                   <Mic className="h-4 w-4" />
                 </Button>
-                <Button type="submit" size="icon" disabled={isSubmitting}>
+                <Button type="submit" size="icon" disabled={isSubmitting} aria-label="Send message">
                   {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
               </form>

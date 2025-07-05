@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
@@ -11,7 +11,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuPortal,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -34,12 +38,18 @@ import {
   CalendarDays,
   Gamepad2,
   Home,
+  Laptop,
   Layers,
   LayoutTemplate,
   LogOut,
   Mic,
+  Minus,
+  Moon,
+  Plus,
   ScanLine,
+  Sun,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 
 const navItems = [
   { href: "/dashboard", icon: Home, label: "Dashboard" },
@@ -56,26 +66,50 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { setTheme } = useTheme();
+  const [fontSize, setFontSize] = useState('base');
 
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
     }
   }, [user, loading, router]);
+  
+  useEffect(() => {
+    const savedSize = localStorage.getItem('fontSize') || 'base';
+    document.documentElement.classList.remove('font-sm', 'font-lg');
+    if (savedSize === 'sm') document.documentElement.classList.add('font-sm');
+    if (savedSize === 'lg') document.documentElement.classList.add('font-lg');
+    setFontSize(savedSize);
+  }, []);
+
+  const handleFontSizeChange = (direction: 'increase' | 'decrease') => {
+    const newSize = fontSize === 'sm' && direction === 'increase' ? 'base' :
+                  fontSize === 'base' && direction === 'increase' ? 'lg' :
+                  fontSize === 'lg' && direction === 'decrease' ? 'base' :
+                  fontSize === 'base' && direction === 'decrease' ? 'sm' :
+                  fontSize;
+    
+    document.documentElement.classList.remove('font-sm', 'font-lg');
+    if (newSize !== 'base') {
+        document.documentElement.classList.add(`font-${newSize}`);
+    }
+    localStorage.setItem('fontSize', newSize);
+    setFontSize(newSize);
+  };
+
 
   const handleSignOut = () => {
-    sessionStorage.removeItem('isDemoMode'); // Clear demo mode flag
+    sessionStorage.removeItem('isDemoMode');
     if (auth) {
         auth.signOut();
     } else {
-        // In demo mode, auth is null, so we redirect manually.
-        // AuthProvider will clear the mock user on the next render because the flag is gone.
         router.push('/login');
     }
   };
 
   if (loading || !user) {
-    return null; // Or a loading spinner
+    return null;
   }
   
   const getInitials = (name: string | null | undefined) => {
@@ -85,6 +119,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <SidebarProvider>
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-background focus:text-foreground">
+        Skip to main content
+      </a>
       <Sidebar>
         <SidebarHeader>
           <Logo />
@@ -109,7 +146,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <SidebarFooter>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="justify-start gap-2 w-full px-2">
+              <Button variant="ghost" className="justify-start gap-2 w-full px-2" aria-label={`Open user menu for ${user.displayName || user.email}`}>
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={user.photoURL ?? ''} />
                   <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
@@ -119,6 +156,45 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </DropdownMenuTrigger>
             <DropdownMenuContent side="right" align="start" className="w-56">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                  <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                  <span className="ml-6">Theme</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem onClick={() => setTheme('light')}>
+                      <Sun className="mr-2 h-4 w-4" />
+                      <span>Light</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme('dark')}>
+                      <Moon className="mr-2 h-4 w-4" />
+                      <span>Dark</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme('system')}>
+                      <Laptop className="mr-2 h-4 w-4" />
+                      <span>System</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="focus:bg-transparent">
+                  <div className="flex items-center justify-between w-full">
+                      <span>Font Size</span>
+                      <div className="flex items-center gap-1">
+                          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleFontSizeChange('decrease')} disabled={fontSize === 'sm'}>
+                              <Minus className="h-4 w-4" />
+                              <span className="sr-only">Decrease font size</span>
+                          </Button>
+                          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleFontSizeChange('increase')} disabled={fontSize === 'lg'}>
+                              <Plus className="h-4 w-4" />
+                              <span className="sr-only">Increase font size</span>
+                          </Button>
+                      </div>
+                  </div>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut}>
                 <LogOut className="mr-2 h-4 w-4" />
@@ -135,7 +211,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 {/* Could add breadcrumbs here */}
             </div>
         </header>
-        <main className="flex-1 p-6">{children}</main>
+        <main id="main-content" className="flex-1 p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

@@ -81,8 +81,7 @@ export default function FlashcardsPage() {
       
       toast({ title: "Flashcards created!", description: "Generating images in the background..." });
 
-      // Generate images without blocking the UI
-      generateCardImages(initialCards);
+      await generateCardImages(initialCards);
 
     } catch (error: any) {
       toast({
@@ -173,7 +172,7 @@ export default function FlashcardsPage() {
                       {/* Front of Card */}
                       <div className="absolute w-full h-full backface-hidden flex items-center justify-center p-4 rounded-lg border bg-card shadow-md">
                         <h3 className="text-xl font-bold text-center">{card.term}</h3>
-                        <Button size="icon" variant="ghost" className="absolute bottom-2 right-2 h-8 w-8 no-print" onClick={() => handleFlip(index)}>
+                        <Button size="icon" variant="ghost" className="absolute bottom-2 right-2 h-8 w-8 no-print" onClick={() => handleFlip(index)} aria-label="Flip card">
                           <FlipHorizontal className="h-5 w-5" />
                         </Button>
                       </div>
@@ -196,7 +195,7 @@ export default function FlashcardsPage() {
                             )}
                             <p className="text-sm">{card.definition}</p>
                         </div>
-                        <Button size="icon" variant="ghost" className="absolute bottom-2 right-2 h-8 w-8 no-print" onClick={() => handleFlip(index)}>
+                        <Button size="icon" variant="ghost" className="absolute bottom-2 right-2 h-8 w-8 no-print" onClick={() => handleFlip(index)} aria-label="Flip card">
                           <FlipHorizontal className="h-5 w-5" />
                         </Button>
                       </div>

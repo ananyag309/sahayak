@@ -43,8 +43,7 @@ export default function PlannerPage() {
       const result = await generateLessonPlan(input);
       setLessonPlan(result.weeklyPlan);
 
-      // Save to Firestore only for real users
-      if (user && user.uid !== 'demo-user' && db) {
+      if (user && db) {
         await addDoc(collection(db, "lessonPlans"), {
           userId: user.uid,
           subject: values.subject,
@@ -166,8 +165,8 @@ export default function PlannerPage() {
                 {lessonPlan && (
                     <>
                         <div className="flex justify-end gap-2 mb-2">
-                            <Button variant="ghost" size="icon" onClick={handleCopy}><Copy className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="icon" onClick={handleDownload}><Download className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" onClick={handleCopy} aria-label="Copy plan"><Copy className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" onClick={handleDownload} aria-label="Download plan"><Download className="h-4 w-4" /></Button>
                         </div>
                         <ScrollArea className="flex-1 rounded-md border p-4 bg-muted">
                             <pre className="text-sm whitespace-pre-wrap font-sans">{lessonPlan}</pre>
