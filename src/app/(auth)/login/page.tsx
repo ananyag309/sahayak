@@ -244,7 +244,7 @@ export default function LoginPage() {
           Google
         </Button>
         
-        <Button variant="secondary" className="w-full mt-4" onClick={handleDemoMode}>
+        <Button variant={!isFirebaseConfigured ? "default" : "secondary"} className="w-full mt-4" onClick={handleDemoMode}>
             Continue in Demo Mode
         </Button>
         
