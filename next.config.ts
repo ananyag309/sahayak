@@ -22,6 +22,17 @@ const nextConfig: NextConfig = {
       }
     ],
   },
+  webpack: (config, { isServer }) => {
+    // This is to fix a build error for 'async_hooks' which is a nodejs only module
+    // It's used by opentelemetry, a dependency of genkit.
+    if (!isServer) {
+        config.resolve.fallback = {
+            ...config.resolve.fallback,
+            'async_hooks': false,
+        };
+    }
+    return config;
+  },
 };
 
 export default nextConfig;
