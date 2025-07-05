@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -13,19 +14,22 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Download, Loader2, Mic, Send, User } from "lucide-react";
+import { Copy, Download, Loader2, Mic, Paperclip, Send, User, X } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
-import { db } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { ref, uploadString, getDownloadURL } from "firebase/storage";
+import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
-  question: z.string().min(1, { message: "Please enter a question or concept." }),
+  question: z.string(),
   language: z.enum(["en", "hi", "mr", "ta"]),
 });
 
 type Message = {
   role: "user" | "assistant";
   content: string;
+  imageUrl?: string | null;
 };
 
 export default function ChatPage() {
@@ -33,6 +37,15 @@ export default function ChatPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  
+  // States for new features
+  const [isListening, setIsListening] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  const recognitionRef = useRef<any>(null); // Using `any` for SpeechRecognition for broader browser support
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -41,6 +54,82 @@ export default function ChatPage() {
       language: "en",
     },
   });
+
+  // Scroll to bottom of chat
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+        scrollAreaRef.current.scrollTo({
+            top: scrollAreaRef.current.scrollHeight,
+            behavior: "smooth",
+        });
+    }
+  }, [messages]);
+
+  // Setup Speech Recognition
+  useEffect(() => {
+    try {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.onstart = () => setIsListening(true);
+            recognition.onend = () => setIsListening(false);
+            recognition.onresult = (event: any) => {
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    }
+                }
+                if (finalTranscript) {
+                    form.setValue('question', form.getValues('question') + finalTranscript);
+                }
+            };
+             recognition.onerror = (event: any) => {
+                toast({
+                    variant: 'destructive',
+                    title: 'Speech Recognition Error',
+                    description: event.error === 'not-allowed' ? 'Microphone access denied.' : 'An error occurred during speech recognition.',
+                });
+            };
+            recognitionRef.current = recognition;
+        }
+    } catch (error) {
+        console.error("Speech recognition is not supported in this browser.", error);
+    }
+  }, [form, toast]);
+
+  const handleMicClick = () => {
+    const recognition = recognitionRef.current;
+    if (recognition) {
+      if (isListening) {
+        recognition.stop();
+      } else {
+        const langMap = { en: 'en-US', hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN' };
+        recognition.lang = langMap[form.getValues('language')];
+        recognition.start();
+      }
+    } else {
+         toast({ variant: 'destructive', title: 'Feature Not Supported', description: 'Speech recognition is not available in your browser.'});
+    }
+  };
+  
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if(fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -59,20 +148,37 @@ export default function ChatPage() {
   };
   
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!values.question && !imageFile) {
+        toast({ variant: 'destructive', title: 'Input Required', description: 'Please enter a question or upload an image.' });
+        return;
+    }
+    
     setIsLoading(true);
-    const userMessage: Message = { role: "user", content: values.question };
+    const userMessage: Message = { role: "user", content: values.question, imageUrl: imagePreview };
     setMessages(prev => [...prev, userMessage]);
     
+    let input: AIChatInput = { ...values };
+    let publicImageUrl: string | null = null;
+
     try {
-      const input: AIChatInput = values;
+      if (imageFile) {
+        // We send a data URI to Genkit, but upload to Storage to get a persistent URL for Firestore
+        if (user && user.uid !== 'demo-user' && storage && imagePreview) {
+          const storageRef = ref(storage, `chatImages/${user.uid}/${Date.now()}_${imageFile.name}`);
+          const uploadResult = await uploadString(storageRef, imagePreview, 'data_url');
+          publicImageUrl = await getDownloadURL(uploadResult.ref);
+        }
+        input.imageDataUri = imagePreview ?? undefined;
+      }
+
       const result = await aiChat(input);
       setMessages(prev => [...prev, { role: "assistant", content: result.response }]);
       
-      // Save to Firestore only for real users
-      if (user && user.uid !== 'demo-user' && db) {
+      if (user && db) {
         await addDoc(collection(db, "chatResponses"), {
           userId: user.uid,
           prompt: values.question,
+          imageUrl: publicImageUrl, // Save persistent URL
           response: result.response,
           language: values.language,
           createdAt: serverTimestamp(),
@@ -80,13 +186,13 @@ export default function ChatPage() {
       }
 
       form.reset({ ...values, question: "" });
+      removeImage();
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "An error occurred",
         description: error.message || "Failed to get a response from the AI. Please try again.",
       });
-       // Remove the user's message from the chat if the API call failed
        setMessages(prev => prev.filter(m => m !== userMessage));
     } finally {
       setIsLoading(false);
@@ -97,13 +203,13 @@ export default function ChatPage() {
     <div className="h-[calc(100vh-5rem)] flex flex-col">
       <header className="mb-4">
         <h1 className="text-3xl font-bold tracking-tight font-headline">AI Chat Assistant</h1>
-        <p className="text-muted-foreground">Ask a question or enter a concept to get a story, analogy, or simple explanation.</p>
+        <p className="text-muted-foreground">Ask a question, upload an image, or use your voice to get a story, analogy, or simple explanation.</p>
       </header>
 
       <Card className="flex-1 flex flex-col">
         <CardContent className="p-0 flex-1 flex flex-col">
-          <ScrollArea className="flex-1 p-6">
-            <div className="space-y-6">
+          <ScrollArea className="flex-1" ref={scrollAreaRef}>
+             <div className="space-y-6 p-6">
               {messages.length === 0 && (
                 <div className="text-center text-muted-foreground pt-16">No messages yet. Start by asking a question below.</div>
               )}
@@ -115,7 +221,12 @@ export default function ChatPage() {
                     </Avatar>
                   )}
                   <div className={`rounded-lg p-4 max-w-xl ${message.role === 'user' ? 'bg-primary/10' : 'bg-muted'}`}>
-                    <p className="whitespace-pre-wrap">{message.content}</p>
+                    {message.imageUrl && (
+                        <div className="mb-2 rounded-md overflow-hidden border">
+                            <Image src={message.imageUrl} alt="User upload" width={300} height={300} className="object-cover" />
+                        </div>
+                    )}
+                    {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
                     {message.role === "assistant" && (
                       <div className="flex gap-2 mt-2">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(message.content)}>
@@ -148,15 +259,32 @@ export default function ChatPage() {
           </ScrollArea>
           
           <div className="p-4 border-t">
+            {imagePreview && (
+                <div className="relative w-24 h-24 mb-2 rounded-md overflow-hidden border">
+                    <Image src={imagePreview} alt="Image preview" layout="fill" objectFit="cover" />
+                    <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-1 right-1 h-6 w-6 rounded-full"
+                        onClick={removeImage}
+                    >
+                        <X className="h-4 w-4" />
+                    </Button>
+                </div>
+            )}
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-start gap-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-start gap-2">
+                <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} className="hidden" />
+                 <Button type="button" variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isLoading}>
+                    <Paperclip className="h-4 w-4" />
+                </Button>
                 <FormField
                   control={form.control}
                   name="question"
                   render={({ field }) => (
                     <FormItem className="flex-1">
                       <FormControl>
-                        <Textarea placeholder="e.g., Explain photosynthesis like I'm 10." {...field} rows={1} className="min-h-[40px]" disabled={isLoading} />
+                        <Textarea placeholder="e.g., Explain what's happening in this image..." {...field} rows={1} className="min-h-[40px]" disabled={isLoading} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -167,7 +295,7 @@ export default function ChatPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormControl>
-                         <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
+                         <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading || isListening}>
                           <SelectTrigger className="w-[120px]">
                             <SelectValue placeholder="Language" />
                           </SelectTrigger>
@@ -182,7 +310,7 @@ export default function ChatPage() {
                     </FormItem>
                   )}
                 />
-                 <Button type="button" variant="outline" size="icon" disabled={true}>
+                 <Button type="button" variant="outline" size="icon" onClick={handleMicClick} className={cn(isListening && 'bg-destructive text-destructive-foreground animate-pulse')}>
                   <Mic className="h-4 w-4" />
                 </Button>
                 <Button type="submit" size="icon" disabled={isLoading}>
