@@ -144,7 +144,7 @@ export default function ChatPage() {
         setIsListening(false); 
       } else {
         try {
-            const langMap: Record<string, string> = { en: 'en-US', hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN' };
+            const langMap: Record<string, string> = { en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN' };
             recognition.lang = langMap[form.getValues('language')];
             recognition.start();
         } catch (err) {
@@ -195,6 +195,10 @@ export default function ChatPage() {
       return;
     }
 
+    if (!message.content?.trim()) {
+      return; // Don't speak empty messages
+    }
+    
     if (speakingMessageId === message.id) {
       window.speechSynthesis.cancel();
       setSpeakingMessageId(null);
@@ -204,18 +208,18 @@ export default function ChatPage() {
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(message.content);
-    const langMap: Record<string, string> = { en: 'en-US', hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN' };
-    const targetLang = langMap[message.language] || 'en-US';
+    const langMap: Record<string, string> = { en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN' };
+    const targetLang = langMap[message.language] || 'en-IN';
     
     utterance.lang = targetLang;
     
-    // Find the best voice. Prioritize exact match, then language prefix match.
+    // Find the best voice with fallbacks
     const voice = voices.find(v => v.lang === targetLang) || voices.find(v => v.lang.startsWith(message.language));
     
     if (voice) {
       utterance.voice = voice;
     } else {
-        console.warn(`No voice found for language: ${targetLang}. Using browser default.`);
+        console.warn(`No specific voice found for language: ${targetLang}. Using browser default.`);
     }
     
     utterance.onend = () => setSpeakingMessageId(null);
@@ -383,7 +387,7 @@ export default function ChatPage() {
                           </div>
                       )}
 
-                      {message.role === "assistant" && (
+                      {message.role === "assistant" && message.content && (
                         <div className="flex gap-2 mt-2">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(message.content)} aria-label="Copy response">
                             <Copy className="h-4 w-4" />
