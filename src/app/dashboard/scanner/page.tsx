@@ -120,7 +120,7 @@ export default function ScannerPage() {
       questions.forEach((q) => {
         const questionText = `${questionCounter}. ${q}`;
         const splitText = doc.splitTextToSize(questionText, pageWidth - (margin * 2));
-        const neededHeight = (splitText.length * 5) + 5;
+        const neededHeight = (splitText.length * 5) + 8; // Add space for answer
         checkPageBreak(neededHeight);
         doc.text(splitText, margin, y);
         y += neededHeight;
@@ -145,49 +145,46 @@ export default function ScannerPage() {
         doc.text("Match the term in Column A with its definition in Column B.", margin, y);
         y += 8;
 
-        const shuffledDefs = shuffleArray(results.matchTheColumnQuestions);
+        const terms = results.matchTheColumnQuestions.map(p => p.term);
+        const definitions = results.matchTheColumnQuestions.map(p => p.definition);
+        const shuffledDefinitions = shuffleArray(definitions);
+
         const colAstartX = margin;
         const colBstartX = pageWidth / 2 + 5;
-        let tableStartY = y;
-
-        // Draw Column A
+        const colWidth = (pageWidth / 2) - margin - 10;
+        
+        checkPageBreak(12);
         doc.setFont('helvetica', 'bold');
         doc.text("Column A", colAstartX, y);
-        y += 6;
+        doc.text("Column B", colBstartX, y);
+        y += 7;
         doc.setFont('helvetica', 'normal');
-        let colA_Y = y;
-        results.matchTheColumnQuestions.forEach((pair, index) => {
-            const text = `${index + 1}. ${pair.term}`;
-            const split = doc.splitTextToSize(text, (pageWidth / 2) - margin - 5);
-            const height = split.length * 5 + 4;
-            checkPageBreak(height);
-            if (y !== colA_Y) { // New page
-                colA_Y = y;
-                tableStartY = y - 6;
-            }
-            doc.text(split, colAstartX, colA_Y);
-            colA_Y += height;
-        });
 
-        // Draw Column B
-        doc.setFont('helvetica', 'bold');
-        doc.text("Column B", colBstartX, tableStartY);
-        y = tableStartY + 6;
-        doc.setFont('helvetica', 'normal');
-        let colB_Y = y;
-         shuffledDefs.forEach((pair, index) => {
-            const text = `${String.fromCharCode(97 + index)}. ${pair.definition}`;
-            const split = doc.splitTextToSize(text, (pageWidth / 2) - margin - 5);
-            const height = split.length * 5 + 4;
-            checkPageBreak(height);
-            if (y !== colB_Y) { // New page
-                 colB_Y = y;
-            }
-            doc.text(split, colBstartX, colB_Y);
-            colB_Y += height;
-        });
+        terms.forEach((term, index) => {
+            const termText = `${index + 1}. ${term}`;
+            const defText = `${String.fromCharCode(97 + index)}. ${shuffledDefinitions[index]}`;
 
-        y = Math.max(colA_Y, colB_Y);
+            const termLines = doc.splitTextToSize(termText, colWidth);
+            const defLines = doc.splitTextToSize(defText, colWidth);
+
+            const rowHeight = Math.max(termLines.length, defLines.length) * 5 + 4;
+
+            checkPageBreak(rowHeight);
+            
+            if (y === margin) { // New page was added
+                doc.setFont('helvetica', 'bold');
+                doc.text("Column A", colAstartX, y);
+                doc.text("Column B", colBstartX, y);
+                y += 7;
+                doc.setFont('helvetica', 'normal');
+            }
+
+            doc.text(termLines, colAstartX, y);
+            doc.text(defLines, colBstartX, y);
+            
+            y += rowHeight;
+        });
+        y += 10;
     }
     
     doc.save(`sahayak-worksheet-grade-${form.getValues('gradeLevel')}.pdf`);
