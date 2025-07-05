@@ -74,7 +74,7 @@ export default function LoginPage() {
           <Alert variant="destructive" className="mb-4">
             <AlertTitle>Firebase Not Configured</AlertTitle>
             <AlertDescription>
-              Please add your Firebase credentials to your <code>.env</code> file to enable login.
+              Please add your Firebase credentials to your <code>.env</code> file, or continue in demo mode.
             </AlertDescription>
           </Alert>
         )}
@@ -112,6 +112,11 @@ export default function LoginPage() {
             </Button>
           </form>
         </Form>
+        {!isFirebaseConfigured && (
+            <Button variant="secondary" className="w-full mt-4" onClick={() => router.push('/dashboard')}>
+                Continue in Demo Mode
+            </Button>
+        )}
         <div className="mt-4 text-center text-sm">
           Don&apos;t have an account?{" "}
           <Link href="/signup" className="underline hover:text-primary">
