@@ -25,7 +25,7 @@ const formSchema = z.object({
 });
 
 export default function PlannerPage() {
-  const { user, isDemoMode } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [lessonPlan, setLessonPlan] = useState<string | null>(null);
@@ -36,10 +36,6 @@ export default function PlannerPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!user) {
-      toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in." });
-      return;
-    }
     setIsLoading(true);
     setLessonPlan(null);
     try {
@@ -47,7 +43,7 @@ export default function PlannerPage() {
       const result = await generateLessonPlan(input);
       setLessonPlan(result.weeklyPlan);
 
-      if (db && user && !isDemoMode) {
+      if (db && user) {
         await addDoc(collection(db, "lessonPlans"), {
           userId: user.uid,
           subject: values.subject,

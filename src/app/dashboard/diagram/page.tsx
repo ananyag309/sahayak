@@ -22,7 +22,7 @@ const formSchema = z.object({
 });
 
 export default function DiagramPage() {
-  const { user, isDemoMode } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -35,14 +35,6 @@ export default function DiagramPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!user) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "You must be logged in to generate a diagram.",
-      });
-      return;
-    }
     setIsLoading(true);
     setDiagramUrl(null);
     setCurrentTopic(values.topic);
@@ -52,7 +44,7 @@ export default function DiagramPage() {
       const result = await generateDiagram(input);
       const dataUri = result.diagramDataUri;
 
-      if (!isDemoMode && storage && user) {
+      if (storage && user) {
         const fetchRes = await fetch(dataUri);
         const blob = await fetchRes.blob();
 
@@ -77,14 +69,6 @@ export default function DiagramPage() {
   }
 
   const handleSaveDiagram = async () => {
-    if (isDemoMode) {
-      toast({
-        title: "Demo Mode",
-        description: "Saving to your collection is disabled in Demo Mode."
-      });
-      return;
-    }
-
     if (!diagramUrl || !user || !currentTopic || !db) {
       toast({
         variant: "destructive",

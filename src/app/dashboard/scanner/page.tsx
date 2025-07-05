@@ -28,7 +28,7 @@ const formSchema = z.object({
 });
 
 export default function ScannerPage() {
-  const { user, isDemoMode } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -63,15 +63,6 @@ export default function ScannerPage() {
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    // No AI calls in demo mode for this tool, as it requires a key.
-    if (isDemoMode && !process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
-      toast({
-        title: "Demo Mode",
-        description: "This feature is disabled in demo mode without a valid Gemini API key.",
-      });
-      return;
-    }
-    
     setIsLoading(true);
     setResults(null);
     try {
@@ -84,7 +75,7 @@ export default function ScannerPage() {
       const result = await textbookScanner(input);
       setResults(result);
 
-      if (user && !isDemoMode && storage && db) {
+      if (user && storage && db) {
         const storageRef = ref(storage, `textbookUploads/${user.uid}/${Date.now()}-${file.name}`);
         await uploadBytes(storageRef, file);
         const imageUrl = await getDownloadURL(storageRef);

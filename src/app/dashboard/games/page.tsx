@@ -26,7 +26,7 @@ const formSchema = z.object({
 type GameState = 'config' | 'playing' | 'finished';
 
 export default function GamesPage() {
-  const { user, isDemoMode } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [game, setGame] = useState<GenerateGameOutput | null>(null);
@@ -48,7 +48,7 @@ export default function GamesPage() {
       const result = await generateGame(values);
       setGame(result);
       setGameState('playing');
-      if (db && user && !isDemoMode) {
+      if (db && user) {
         await addDoc(collection(db, "games"), {
             userId: user.uid,
             topic: values.topic,

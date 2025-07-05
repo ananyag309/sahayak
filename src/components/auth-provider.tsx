@@ -9,13 +9,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  isDemoMode: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  isDemoMode: false,
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -23,12 +21,10 @@ export const useAuth = () => useContext(AuthContext);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isDemoMode, setIsDemoMode] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
     const demo = sessionStorage.getItem('isDemoMode') === 'true';
-    setIsDemoMode(demo);
 
     if (demo) {
       console.warn("In Demo Mode. Using a mock user for UI preview.");
@@ -69,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, isDemoMode }}>
+    <AuthContext.Provider value={{ user, loading }}>
       {children}
     </AuthContext.Provider>
   );

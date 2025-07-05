@@ -29,7 +29,7 @@ type Message = {
 };
 
 export default function ChatPage() {
-  const { user, isDemoMode } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -59,15 +59,6 @@ export default function ChatPage() {
   };
   
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!user) {
-      toast({
-        variant: "destructive",
-        title: "Not Logged In",
-        description: "You need to be logged in to chat with the assistant.",
-      });
-      return;
-    }
-
     setIsLoading(true);
     setMessages(prev => [...prev, { role: "user", content: values.question }]);
     
@@ -76,7 +67,7 @@ export default function ChatPage() {
       const result = await aiChat(input);
       setMessages(prev => [...prev, { role: "assistant", content: result.response }]);
       
-      if (db && user && !isDemoMode) {
+      if (db && user) {
         await addDoc(collection(db, "chatResponses"), {
           userId: user.uid,
           prompt: values.question,
