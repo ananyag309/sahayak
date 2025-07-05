@@ -52,9 +52,9 @@ const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
 
 const languageConfig = {
     en: { name: 'English', fontName: 'Helvetica', buttonText: 'Download Worksheet', fontUrl: null },
-    hi: { name: 'Hindi', fontName: 'NotoSansDevanagari', buttonText: 'हिंदी वर्कशीट डाउनलोड करें', fontUrl: 'https://raw.githubusercontent.com/google/fonts/main/ofl/notosansdevanagari/NotoSansDevanagari-Regular.ttf' },
-    mr: { name: 'Marathi', fontName: 'NotoSansDevanagari', buttonText: 'मराठी वर्कशीट डाउनलोड करा', fontUrl: 'https://raw.githubusercontent.com/google/fonts/main/ofl/notosansdevanagari/NotoSansDevanagari-Regular.ttf' },
-    ta: { name: 'Tamil', fontName: 'NotoSansTamil', buttonText: 'தமிழ் பணித்தாள் பதிவிறக்கம்', fontUrl: 'https://raw.githubusercontent.com/google/fonts/main/ofl/notosanstamil/NotoSansTamil-Regular.ttf' },
+    hi: { name: 'Hindi', fontName: 'NotoSansDevanagari', buttonText: 'हिंदी वर्कशीट डाउनलोड करें', fontUrl: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosansdevanagari/NotoSansDevanagari-Regular.ttf' },
+    mr: { name: 'Marathi', fontName: 'NotoSansDevanagari', buttonText: 'मराठी वर्कशीट डाउनलोड करा', fontUrl: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosansdevanagari/NotoSansDevanagari-Regular.ttf' },
+    ta: { name: 'Tamil', fontName: 'NotoSansTamil', buttonText: 'தமிழ் பணித்தாள் பதிவிறக்கம்', fontUrl: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosanstamil/NotoSansTamil-Regular.ttf' },
 } as const;
 
 
@@ -109,7 +109,7 @@ export default function ScannerPage() {
         if (isCustomFont) {
             toast({ title: "Downloading font...", description: "This may take a moment." });
             const fontRes = await fetch(config.fontUrl!);
-            if (!fontRes.ok) throw new Error("Font download failed");
+            if (!fontRes.ok) throw new Error(`Font download failed with status: ${fontRes.status}`);
             const fontArrayBuffer = await fontRes.arrayBuffer();
             const fontBase64 = arrayBufferToBase64(fontArrayBuffer);
             const fontFileName = `${config.fontName}.ttf`;
@@ -473,5 +473,3 @@ export default function ScannerPage() {
     </div>
   );
 }
-
-    
