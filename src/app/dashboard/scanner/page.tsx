@@ -52,9 +52,9 @@ const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
 
 const languageConfig = {
     en: { name: 'English', fontName: 'Helvetica', buttonText: 'Download Worksheet', fontUrl: null },
-    hi: { name: 'Hindi', fontName: 'NotoSansDevanagari', buttonText: 'हिंदी वर्कशीट डाउनलोड करें', fontUrl: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosansdevanagari/NotoSansDevanagari-Regular.ttf' },
-    mr: { name: 'Marathi', fontName: 'NotoSansDevanagari', buttonText: 'मराठी वर्कशीट डाउनलोड करा', fontUrl: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosansdevanagari/NotoSansDevanagari-Regular.ttf' },
-    ta: { name: 'Tamil', fontName: 'NotoSansTamil', buttonText: 'தமிழ் பணித்தாள் பதிவிறக்கம்', fontUrl: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosanstamil/NotoSansTamil-Regular.ttf' },
+    hi: { name: 'Hindi', fontName: 'NotoSansDevanagari', buttonText: 'हिंदी वर्कशीट डाउनलोड करें', fontUrl: 'https://raw.githack.com/google/fonts/main/ofl/notosansdevanagari/NotoSansDevanagari-Regular.ttf' },
+    mr: { name: 'Marathi', fontName: 'NotoSansDevanagari', buttonText: 'मराठी वर्कशीट डाउनलोड करा', fontUrl: 'https://raw.githack.com/google/fonts/main/ofl/notosansdevanagari/NotoSansDevanagari-Regular.ttf' },
+    ta: { name: 'Tamil', fontName: 'NotoSansTamil', buttonText: 'தமிழ் பணித்தாள் பதிவிறக்கம்', fontUrl: 'https://raw.githack.com/google/fonts/main/ofl/notosanstamil/NotoSansTamil-Regular.ttf' },
 } as const;
 
 
@@ -134,7 +134,7 @@ export default function ScannerPage() {
             return false;
         };
         
-        doc.setFontSize(isCustomFont ? 22 : 20).setFont(config.fontName, isCustomFont ? 'normal' : 'bold');
+        doc.setFontSize(20).setFont(config.fontName, isCustomFont ? 'normal' : 'bold');
         doc.text("Sahayak AI Worksheet", pageWidth / 2, y, { align: 'center' });
         y += 12;
 
@@ -154,7 +154,7 @@ export default function ScannerPage() {
           if (!questions || questions.length === 0) return;
 
           checkPageBreak(12);
-          doc.setFontSize(isCustomFont ? 16 : 14).setFont(config.fontName, isCustomFont ? 'normal' : 'bold');
+          doc.setFontSize(14).setFont(config.fontName, isCustomFont ? 'normal' : 'bold');
           doc.text(title, margin, y);
           y += 8;
           doc.setFontSize(11).setFont(config.fontName, 'normal');
@@ -179,7 +179,7 @@ export default function ScannerPage() {
 
         if (results.matchTheColumnQuestions && results.matchTheColumnQuestions.length > 0) {
             checkPageBreak(20);
-            doc.setFontSize(isCustomFont ? 16 : 14).setFont(config.fontName, isCustomFont ? 'normal' : 'bold');
+            doc.setFontSize(14).setFont(config.fontName, isCustomFont ? 'normal' : 'bold');
             doc.text("D. Match the Columns", margin, y);
             y += 8;
             doc.setFontSize(11).setFont(config.fontName, 'normal');
@@ -473,3 +473,5 @@ export default function ScannerPage() {
     </div>
   );
 }
+
+    
