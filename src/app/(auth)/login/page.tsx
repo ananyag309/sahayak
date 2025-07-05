@@ -68,7 +68,7 @@ export default function LoginPage() {
       let description: React.ReactNode = "An unexpected error occurred. Please try again.";
 
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-          description = "Invalid email or password. Please check your credentials and try again.";
+          description = "Invalid email or password. Please double-check your credentials or sign up if you don't have an account.";
       } else if (error.code === 'auth/operation-not-allowed') {
           description = (
             <span>
