@@ -15,14 +15,15 @@ import { useToast } from "@/hooks/use-toast";
 import { db, storage } from "@/lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { Download, Loader2, Save } from "lucide-react";
+import { Download, Loader2, Save, Terminal } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
   topic: z.string().min(3, { message: "Topic must be at least 3 characters." }),
 });
 
 export default function DiagramPage() {
-  const { user } = useAuth();
+  const { user, isDemoMode } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -35,6 +36,14 @@ export default function DiagramPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (isDemoMode) {
+      toast({
+        variant: "destructive",
+        title: "Demo Mode",
+        description: "This feature is disabled in Demo Mode.",
+      });
+      return;
+    }
     if (!user || !storage) {
       toast({
         variant: "destructive",
@@ -113,6 +122,15 @@ export default function DiagramPage() {
                     <CardTitle>Create Diagram</CardTitle>
                 </CardHeader>
                 <CardContent>
+                    {isDemoMode && (
+                        <Alert className="mb-4">
+                            <Terminal className="h-4 w-4" />
+                            <AlertTitle>Demo Mode</AlertTitle>
+                            <AlertDescription>
+                            This feature is disabled because it requires a connection to AI services and Firebase Storage. Please sign in with a real account to generate and save diagrams.
+                            </AlertDescription>
+                        </Alert>
+                    )}
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                             <FormField
@@ -122,13 +140,13 @@ export default function DiagramPage() {
                                 <FormItem>
                                 <FormLabel>Topic or Concept</FormLabel>
                                 <FormControl>
-                                    <Input placeholder="e.g., The Water Cycle" {...field} />
+                                    <Input placeholder="e.g., The Water Cycle" {...field} disabled={isLoading || isDemoMode} />
                                 </FormControl>
                                 <FormMessage />
                                 </FormItem>
                             )}
                             />
-                            <Button type="submit" className="w-full" disabled={isLoading}>
+                            <Button type="submit" className="w-full" disabled={isLoading || isDemoMode}>
                                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Generate Diagram"}
                             </Button>
                         </form>
@@ -162,7 +180,9 @@ export default function DiagramPage() {
                     </CardContent>
                  )}
                 {!isLoading && !diagramUrl && (
-                    <p className="text-muted-foreground text-center p-4">Enter a topic and click "Generate" to see your diagram.</p>
+                    <p className="text-muted-foreground text-center p-4">
+                        {isDemoMode ? "Diagram Generator is disabled in Demo Mode." : 'Enter a topic and click "Generate" to see your diagram.'}
+                    </p>
                 )}
             </Card>
         </div>

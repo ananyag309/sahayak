@@ -8,15 +8,16 @@ import { aiChat, type AIChatInput } from "@/ai/flows/ai-chat-assistant";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Download, Loader2, Mic, Send, User } from "lucide-react";
+import { Copy, Download, Loader2, Mic, Send, User, Terminal } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { db } from "@/lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
   question: z.string().min(1, { message: "Please enter a question or concept." }),
@@ -29,7 +30,7 @@ type Message = {
 };
 
 export default function ChatPage() {
-  const { user } = useAuth();
+  const { user, isDemoMode } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -59,6 +60,14 @@ export default function ChatPage() {
   };
   
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (isDemoMode) {
+      toast({
+        variant: "destructive",
+        title: "Demo Mode",
+        description: "This feature is disabled in Demo Mode.",
+      });
+      return;
+    }
     if (!user) {
       toast({
         variant: "destructive",
@@ -106,12 +115,22 @@ export default function ChatPage() {
         <p className="text-muted-foreground">Ask a question or enter a concept to get a story, analogy, or simple explanation.</p>
       </header>
 
+      {isDemoMode && (
+        <Alert className="mb-4">
+            <Terminal className="h-4 w-4" />
+            <AlertTitle>Demo Mode</AlertTitle>
+            <AlertDescription>
+            The AI Chat is disabled because it requires a Gemini API key. Please sign in with a real account and provide an API key to use this feature.
+            </AlertDescription>
+        </Alert>
+      )}
+
       <Card className="flex-1 flex flex-col">
         <CardContent className="p-0 flex-1 flex flex-col">
           <ScrollArea className="flex-1 p-6">
             <div className="space-y-6">
               {messages.length === 0 && (
-                <div className="text-center text-muted-foreground pt-16">No messages yet. Start by asking a question below.</div>
+                <div className="text-center text-muted-foreground pt-16">{ isDemoMode ? "Chat is disabled in Demo Mode." : "No messages yet. Start by asking a question below."}</div>
               )}
               {messages.map((message, index) => (
                 <div key={index} className={`flex items-start gap-4 ${message.role === "user" ? "justify-end" : ""}`}>
@@ -152,7 +171,7 @@ export default function ChatPage() {
                   render={({ field }) => (
                     <FormItem className="flex-1">
                       <FormControl>
-                        <Textarea placeholder="e.g., Explain photosynthesis like I'm 10." {...field} rows={1} className="min-h-[40px]"/>
+                        <Textarea placeholder="e.g., Explain photosynthesis like I'm 10." {...field} rows={1} className="min-h-[40px]" disabled={isLoading || isDemoMode} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -163,7 +182,7 @@ export default function ChatPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormControl>
-                         <Select onValueChange={field.onChange} defaultValue={field.value}>
+                         <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading || isDemoMode}>
                           <SelectTrigger className="w-[120px]">
                             <SelectValue placeholder="Language" />
                           </SelectTrigger>
@@ -178,10 +197,10 @@ export default function ChatPage() {
                     </FormItem>
                   )}
                 />
-                 <Button type="button" variant="outline" size="icon" disabled={isLoading}>
+                 <Button type="button" variant="outline" size="icon" disabled={isLoading || isDemoMode}>
                   <Mic className="h-4 w-4" />
                 </Button>
-                <Button type="submit" size="icon" disabled={isLoading}>
+                <Button type="submit" size="icon" disabled={isLoading || isDemoMode}>
                   {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
               </form>

@@ -12,12 +12,15 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Download, Loader2, Upload } from "lucide-react";
+import { Loader2, Upload, Terminal } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useAuth } from "@/components/auth-provider";
 import { db, storage } from "@/lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
+
 
 const formSchema = z.object({
   photo: z.any().refine(file => file?.length == 1, "Please upload a photo."),
@@ -25,7 +28,7 @@ const formSchema = z.object({
 });
 
 export default function ScannerPage() {
-  const { user } = useAuth();
+  const { user, isDemoMode } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -56,6 +59,10 @@ export default function ScannerPage() {
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (isDemoMode) {
+        toast({ variant: "destructive", title: "Demo Mode", description: "This feature is disabled in Demo Mode." });
+        return;
+    }
     if (!user || !storage || !db) {
         toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in and Firebase must be configured." });
         return;
@@ -108,6 +115,15 @@ export default function ScannerPage() {
             <CardTitle>Upload Content</CardTitle>
           </CardHeader>
           <CardContent>
+            {isDemoMode && (
+                <Alert className="mb-4">
+                    <Terminal className="h-4 w-4" />
+                    <AlertTitle>Demo Mode</AlertTitle>
+                    <AlertDescription>
+                     This feature is disabled because it requires a connection to AI services and Firebase. Please sign in with a real account to use this feature.
+                    </AlertDescription>
+                </Alert>
+            )}
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
@@ -118,7 +134,7 @@ export default function ScannerPage() {
                       <FormLabel>Textbook Photo</FormLabel>
                       <FormControl>
                         <div className="flex items-center justify-center w-full">
-                          <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80">
+                          <label htmlFor="dropzone-file" className={cn("flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg bg-muted hover:bg-muted/80", isDemoMode ? "cursor-not-allowed" : "cursor-pointer")}>
                             {preview ? (
                                 <Image src={preview} alt="Preview" width={200} height={200} className="object-contain h-full p-2" />
                             ) : (
@@ -129,6 +145,7 @@ export default function ScannerPage() {
                                 </div>
                             )}
                             <Input id="dropzone-file" type="file" className="hidden" accept="image/png, image/jpeg, image/webp"
+                                disabled={isDemoMode}
                                 onChange={(e) => {
                                     field.onChange(e.target.files);
                                     handleFileChange(e);
@@ -147,7 +164,7 @@ export default function ScannerPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Grade Level</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isDemoMode}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a grade level" />
@@ -163,7 +180,7 @@ export default function ScannerPage() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" className="w-full" disabled={isLoading || isDemoMode}>
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Generate Questions"}
                 </Button>
               </form>
@@ -177,39 +194,48 @@ export default function ScannerPage() {
           <h2 className="text-2xl font-bold tracking-tight font-headline">Generated Questions</h2>
           <p className="text-muted-foreground">Results from the AI will appear here.</p>
         </header>
-        {isLoading && <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary"/></div>}
-        {results && (
-          <Card>
-            <CardContent className="p-0">
-                <Accordion type="single" collapsible className="w-full" defaultValue="mcq">
-                    <AccordionItem value="mcq">
-                        <AccordionTrigger className="px-6">Multiple Choice Questions ({results.mcqQuestions.length})</AccordionTrigger>
-                        <AccordionContent className="px-6 pb-6">
-                            <ul className="space-y-2 list-decimal list-inside">
-                                {results.mcqQuestions.map((q, i) => <li key={i}>{q}</li>)}
-                            </ul>
-                        </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="fill-in-the-blank">
-                        <AccordionTrigger className="px-6">Fill in the Blank ({results.fillInTheBlankQuestions.length})</AccordionTrigger>
-                        <AccordionContent className="px-6 pb-6">
-                             <ul className="space-y-2 list-decimal list-inside">
-                                {results.fillInTheBlankQuestions.map((q, i) => <li key={i}>{q}</li>)}
-                            </ul>
-                        </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="match-the-column">
-                        <AccordionTrigger className="px-6">Match the Column ({results.matchTheColumnQuestions.length})</AccordionTrigger>
-                        <AccordionContent className="px-6 pb-6">
-                             <ul className="space-y-2 list-decimal list-inside">
-                                {results.matchTheColumnQuestions.map((q, i) => <li key={i}>{q}</li>)}
-                            </ul>
-                        </AccordionContent>
-                    </AccordionItem>
-                </Accordion>
-            </CardContent>
-          </Card>
-        )}
+        <div className="flex-1">
+          {isLoading ? (
+            <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary"/></div>
+          ) : results ? (
+            <Card>
+              <CardContent className="p-0">
+                  <Accordion type="single" collapsible className="w-full" defaultValue="mcq">
+                      <AccordionItem value="mcq">
+                          <AccordionTrigger className="px-6">Multiple Choice Questions ({results.mcqQuestions.length})</AccordionTrigger>
+                          <AccordionContent className="px-6 pb-6">
+                              <ul className="space-y-2 list-decimal list-inside">
+                                  {results.mcqQuestions.map((q, i) => <li key={i}>{q}</li>)}
+                              </ul>
+                          </AccordionContent>
+                      </AccordionItem>
+                      <AccordionItem value="fill-in-the-blank">
+                          <AccordionTrigger className="px-6">Fill in the Blank ({results.fillInTheBlankQuestions.length})</AccordionTrigger>
+                          <AccordionContent className="px-6 pb-6">
+                              <ul className="space-y-2 list-decimal list-inside">
+                                  {results.fillInTheBlankQuestions.map((q, i) => <li key={i}>{q}</li>)}
+                              </ul>
+                          </AccordionContent>
+                      </AccordionItem>
+                      <AccordionItem value="match-the-column">
+                          <AccordionTrigger className="px-6">Match the Column ({results.matchTheColumnQuestions.length})</AccordionTrigger>
+                          <AccordionContent className="px-6 pb-6">
+                              <ul className="space-y-2 list-decimal list-inside">
+                                  {results.matchTheColumnQuestions.map((q, i) => <li key={i}>{q}</li>)}
+                              </ul>
+                          </AccordionContent>
+                      </AccordionItem>
+                  </Accordion>
+              </CardContent>
+            </Card>
+          ) : (
+             <Card className="min-h-[400px] flex items-center justify-center">
+                 <p className="text-muted-foreground text-center p-4">
+                     {isDemoMode ? "Textbook Scanner is disabled in Demo Mode." : "Upload an image to generate questions."}
+                </p>
+             </Card>
+          )}
+        </div>
       </div>
     </div>
   );

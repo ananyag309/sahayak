@@ -12,10 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Copy, Download } from "lucide-react";
+import { Loader2, Copy, Download, Terminal } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { db } from "@/lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
   topic: z.string().min(3, { message: "Topic is required." }),
@@ -23,7 +24,7 @@ const formSchema = z.object({
 });
 
 export default function GamesPage() {
-  const { user } = useAuth();
+  const { user, isDemoMode } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [game, setGame] = useState<GenerateGameOutput | null>(null);
@@ -34,6 +35,10 @@ export default function GamesPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (isDemoMode) {
+      toast({ variant: "destructive", title: "Demo Mode", description: "This feature is disabled in Demo Mode." });
+      return;
+    }
     if (!user) {
       toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in." });
       return;
@@ -96,6 +101,15 @@ export default function GamesPage() {
         <Card>
           <CardHeader><CardTitle>Game Details</CardTitle></CardHeader>
           <CardContent>
+            {isDemoMode && (
+                <Alert className="mb-4">
+                    <Terminal className="h-4 w-4" />
+                    <AlertTitle>Demo Mode</AlertTitle>
+                    <AlertDescription>
+                    This feature is disabled because it requires a Gemini API key. Please sign in with a real account and provide an API key to use this feature.
+                    </AlertDescription>
+                </Alert>
+            )}
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
@@ -104,7 +118,7 @@ export default function GamesPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Topic</FormLabel>
-                      <FormControl><Input placeholder="e.g., Indian States and Capitals" {...field} /></FormControl>
+                      <FormControl><Input placeholder="e.g., Indian States and Capitals" {...field} disabled={isLoading || isDemoMode} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -115,7 +129,7 @@ export default function GamesPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Grade Level</FormLabel>
-                      <Select onValueChange={(value) => field.onChange(parseInt(value))} defaultValue={String(field.value)}>
+                      <Select onValueChange={(value) => field.onChange(parseInt(value))} defaultValue={String(field.value)} disabled={isLoading || isDemoMode}>
                         <FormControl>
                           <SelectTrigger><SelectValue placeholder="Select a grade" /></SelectTrigger>
                         </FormControl>
@@ -129,7 +143,7 @@ export default function GamesPage() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" className="w-full" disabled={isLoading || isDemoMode}>
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Generate Game"}
                 </Button>
               </form>
@@ -164,7 +178,9 @@ export default function GamesPage() {
             )}
             {!isLoading && !game && (
               <div className="flex-1 flex items-center justify-center">
-                <p className="text-muted-foreground text-center">Fill out the form to generate your game.</p>
+                <p className="text-muted-foreground text-center">
+                    {isDemoMode ? "Game Generator is disabled in Demo Mode." : "Fill out the form to generate your game."}
+                </p>
               </div>
             )}
           </CardContent>
