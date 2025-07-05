@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState } from "react";
@@ -147,7 +148,7 @@ export default function ScannerPage() {
         const shuffledDefs = shuffleArray(results.matchTheColumnQuestions);
         const colAstartX = margin;
         const colBstartX = pageWidth / 2 + 5;
-        const tableStartY = y;
+        let tableStartY = y;
 
         // Draw Column A
         doc.setFont('helvetica', 'bold');
