@@ -104,10 +104,11 @@ export default function ScannerPage() {
         const doc = new jsPDF();
         const selectedLang = form.getValues('language');
         const config = languageConfig[selectedLang];
+        const isCustomFont = !!config.fontUrl;
 
-        if (config.fontUrl) {
+        if (isCustomFont) {
             toast({ title: "Downloading font...", description: "This may take a moment." });
-            const fontRes = await fetch(config.fontUrl);
+            const fontRes = await fetch(config.fontUrl!);
             if (!fontRes.ok) throw new Error("Font download failed");
             const fontArrayBuffer = await fontRes.arrayBuffer();
             const fontBase64 = arrayBufferToBase64(fontArrayBuffer);
@@ -133,7 +134,7 @@ export default function ScannerPage() {
             return false;
         };
         
-        doc.setFontSize(20).setFont(config.fontName, 'bold');
+        doc.setFontSize(isCustomFont ? 22 : 20).setFont(config.fontName, isCustomFont ? 'normal' : 'bold');
         doc.text("Sahayak AI Worksheet", pageWidth / 2, y, { align: 'center' });
         y += 12;
 
@@ -153,7 +154,7 @@ export default function ScannerPage() {
           if (!questions || questions.length === 0) return;
 
           checkPageBreak(12);
-          doc.setFontSize(14).setFont(config.fontName, 'bold');
+          doc.setFontSize(isCustomFont ? 16 : 14).setFont(config.fontName, isCustomFont ? 'normal' : 'bold');
           doc.text(title, margin, y);
           y += 8;
           doc.setFontSize(11).setFont(config.fontName, 'normal');
@@ -178,7 +179,7 @@ export default function ScannerPage() {
 
         if (results.matchTheColumnQuestions && results.matchTheColumnQuestions.length > 0) {
             checkPageBreak(20);
-            doc.setFontSize(14).setFont(config.fontName, 'bold');
+            doc.setFontSize(isCustomFont ? 16 : 14).setFont(config.fontName, isCustomFont ? 'normal' : 'bold');
             doc.text("D. Match the Columns", margin, y);
             y += 8;
             doc.setFontSize(11).setFont(config.fontName, 'normal');
@@ -196,11 +197,12 @@ export default function ScannerPage() {
             const rowPadding = 4;
             
             const drawHeader = () => {
-                doc.setFont(config.fontName, 'bold');
+                doc.setFont(config.fontName, isCustomFont ? 'normal' : 'bold');
+                doc.setFontSize(12);
                 doc.text("Column A", colAstartX, y);
                 doc.text("Column B", colBstartX, y);
                 y += rowLineHeight + rowPadding;
-                doc.setFont(config.fontName, 'normal');
+                doc.setFontSize(11).setFont(config.fontName, 'normal');
             };
 
             drawHeader();
@@ -214,7 +216,7 @@ export default function ScannerPage() {
                 const lineCount = Math.max(termLines.length, defLines.length);
                 const neededHeight = lineCount * rowLineHeight + rowPadding;
 
-                if(checkPageBreak(neededHeight)) {
+                if(checkPageBreak(neededHeight + 12)) { // +12 for header
                     drawHeader();
                 }
 
@@ -227,6 +229,7 @@ export default function ScannerPage() {
         doc.save(`sahayak-worksheet-grade-${form.getValues('gradeLevel')}-${selectedLang}.pdf`);
         toast({ title: "PDF Download Started!" });
     } catch(err: any) {
+        console.error("PDF Generation Error:", err);
         toast({
             variant: "destructive",
             title: "PDF Generation Failed",
@@ -470,3 +473,5 @@ export default function ScannerPage() {
     </div>
   );
 }
+
+    
