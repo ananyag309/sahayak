@@ -76,10 +76,20 @@ export default function SignupPage() {
       });
       router.push("/dashboard");
     } catch (error: any) {
+      let description = "An unexpected error occurred. Please try again.";
+
+      if (error.code === 'auth/operation-not-allowed') {
+        description = "Email/Password sign-in is not enabled. Please enable it in your Firebase project's Authentication settings.";
+      } else if (error.code === 'auth/email-already-in-use') {
+        description = "This email is already registered. Please sign in instead.";
+      } else {
+        description = error.message;
+      }
+      
       toast({
         variant: "destructive",
         title: "Sign Up Failed",
-        description: error.message || "An unexpected error occurred. Please try again.",
+        description,
       });
     } finally {
       setIsLoading(false);
