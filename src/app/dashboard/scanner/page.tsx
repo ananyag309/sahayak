@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState } from "react";
@@ -27,10 +26,11 @@ import jsPDF from 'jspdf';
 const formSchema = z.object({
   photo: z.any().refine(file => file?.length == 1, "Please upload a photo."),
   gradeLevel: z.string().min(1, { message: "Please select a grade level." }),
+  language: z.enum(["en", "hi", "mr", "ta"], { required_error: "Please select a language." }),
 });
 
 // Helper to shuffle array for the matching game
-const shuffleArray = (array: any[]) => {
+const shuffleArray = <T,>(array: T[]): T[] => {
     const newArray = [...array];
     for (let i = newArray.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -39,16 +39,38 @@ const shuffleArray = (array: any[]) => {
     return newArray;
 };
 
+// Helper to convert ArrayBuffer to Base64
+const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+}
+
+const languageConfig = {
+    en: { name: 'English', fontName: 'Helvetica', buttonText: 'Download Worksheet', fontUrl: null },
+    hi: { name: 'Hindi', fontName: 'NotoSansDevanagari', buttonText: 'हिंदी वर्कशीट डाउनलोड करें', fontUrl: 'https://raw.githubusercontent.com/google/fonts/main/ofl/notosansdevanagari/NotoSansDevanagari-Regular.ttf' },
+    mr: { name: 'Marathi', fontName: 'NotoSansDevanagari', buttonText: 'मराठी वर्कशीट डाउनलोड करा', fontUrl: 'https://raw.githubusercontent.com/google/fonts/main/ofl/notosansdevanagari/NotoSansDevanagari-Regular.ttf' },
+    ta: { name: 'Tamil', fontName: 'NotoSansTamil', buttonText: 'தமிழ் பணித்தாள் பதிவிறக்கம்', fontUrl: 'https://raw.githubusercontent.com/google/fonts/main/ofl/notosanstamil/NotoSansTamil-Regular.ttf' },
+} as const;
+
 
 export default function ScannerPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [results, setResults] = useState<TextbookScannerOutput | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      language: "en",
+    }
   });
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,124 +93,148 @@ export default function ScannerPage() {
     });
   }
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     if (!results) {
         toast({ variant: "destructive", title: "No results to download." });
         return;
     }
-    
-    const doc = new jsPDF();
-    const pageHeight = doc.internal.pageSize.height;
-    const pageWidth = doc.internal.pageSize.width;
-    const margin = 15;
-    let y = 20;
+    setIsDownloading(true);
 
-    const checkPageBreak = (neededHeight: number) => {
-        if (y + neededHeight > pageHeight - margin) {
-            doc.addPage();
-            y = margin;
-        }
-    };
-    
-    // Header
-    doc.setFontSize(20).setFont('helvetica', 'bold');
-    doc.text("Sahayak AI Worksheet", pageWidth / 2, y, { align: 'center' });
-    y += 12;
+    try {
+        const doc = new jsPDF();
+        const selectedLang = form.getValues('language');
+        const config = languageConfig[selectedLang];
 
-    doc.setFontSize(11).setFont('helvetica', 'normal');
-    doc.text(`Name: _________________________`, margin, y);
-    doc.text(`Date: ____________________`, pageWidth - margin, y, { align: 'right' });
-    y += 7;
-    doc.text(`Grade: ${form.getValues('gradeLevel') || '______'}`, margin, y);
-    y += 7;
-
-    doc.setLineWidth(0.5);
-    doc.line(margin, y, pageWidth - margin, y);
-    y += 10;
-    
-    // Sections
-    let questionCounter = 1;
-    const addSection = (title: string, questions: string[]) => {
-      if (!questions || questions.length === 0) return;
-
-      checkPageBreak(12);
-      doc.setFontSize(14).setFont('helvetica', 'bold');
-      doc.text(title, margin, y);
-      y += 8;
-      doc.setFontSize(11).setFont('helvetica', 'normal');
-
-      questions.forEach((q) => {
-        const questionText = `${questionCounter}. ${q}`;
-        const splitText = doc.splitTextToSize(questionText, pageWidth - (margin * 2));
-        const neededHeight = (splitText.length * 5) + 8; // Add space for answer
-        checkPageBreak(neededHeight);
-        doc.text(splitText, margin, y);
-        y += neededHeight;
-        questionCounter++;
-      });
-      y+= 5;
-    };
-    
-    addSection("A. Multiple Choice Questions", results.mcqQuestions);
-    questionCounter = 1;
-    addSection("B. Fill in the Blanks", results.fillInTheBlankQuestions);
-    questionCounter = 1;
-    addSection("C. Short Answer Questions", results.shortAnswerQuestions);
-
-    // Match the Columns Section
-    if (results.matchTheColumnQuestions && results.matchTheColumnQuestions.length > 0) {
-        checkPageBreak(20);
-        doc.setFontSize(14).setFont('helvetica', 'bold');
-        doc.text("D. Match the Columns", margin, y);
-        y += 8;
-        doc.setFontSize(11).setFont('helvetica', 'normal');
-        doc.text("Match the term in Column A with its definition in Column B.", margin, y);
-        y += 8;
-
-        const terms = results.matchTheColumnQuestions.map(p => p.term);
-        const definitions = results.matchTheColumnQuestions.map(p => p.definition);
-        const shuffledDefinitions = shuffleArray(definitions);
-
-        const colAstartX = margin;
-        const colBstartX = pageWidth / 2 + 5;
-        const colWidth = (pageWidth / 2) - margin - 10;
-        
-        checkPageBreak(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text("Column A", colAstartX, y);
-        doc.text("Column B", colBstartX, y);
-        y += 7;
-        doc.setFont('helvetica', 'normal');
-
-        terms.forEach((term, index) => {
-            const termText = `${index + 1}. ${term}`;
-            const defText = `${String.fromCharCode(97 + index)}. ${shuffledDefinitions[index]}`;
-
-            const termLines = doc.splitTextToSize(termText, colWidth);
-            const defLines = doc.splitTextToSize(defText, colWidth);
-
-            const rowHeight = Math.max(termLines.length, defLines.length) * 5 + 4;
-
-            checkPageBreak(rowHeight);
+        if (config.fontUrl) {
+            toast({ title: "Downloading font...", description: "This may take a moment." });
+            const fontRes = await fetch(config.fontUrl);
+            if (!fontRes.ok) throw new Error("Font download failed");
+            const fontArrayBuffer = await fontRes.arrayBuffer();
+            const fontBase64 = arrayBufferToBase64(fontArrayBuffer);
+            const fontFileName = `${config.fontName}.ttf`;
             
-            if (y === margin) { // New page was added
-                doc.setFont('helvetica', 'bold');
+            doc.addFileToVFS(fontFileName, fontBase64);
+            doc.addFont(fontFileName, config.fontName, 'normal');
+        }
+        
+        doc.setFont(config.fontName);
+        
+        const pageHeight = doc.internal.pageSize.height;
+        const pageWidth = doc.internal.pageSize.width;
+        const margin = 15;
+        let y = 20;
+
+        const checkPageBreak = (neededHeight: number) => {
+            if (y + neededHeight > pageHeight - margin) {
+                doc.addPage();
+                y = margin;
+                return true; // Page break occurred
+            }
+            return false;
+        };
+        
+        doc.setFontSize(20).setFont(config.fontName, 'bold');
+        doc.text("Sahayak AI Worksheet", pageWidth / 2, y, { align: 'center' });
+        y += 12;
+
+        doc.setFontSize(11).setFont(config.fontName, 'normal');
+        doc.text(`Name: _________________________`, margin, y);
+        doc.text(`Date: ____________________`, pageWidth - margin, y, { align: 'right' });
+        y += 7;
+        doc.text(`Grade: ${form.getValues('gradeLevel') || '______'}`, margin, y);
+        y += 7;
+
+        doc.setLineWidth(0.5);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 10;
+        
+        let questionCounter = 1;
+        const addSection = (title: string, questions: string[]) => {
+          if (!questions || questions.length === 0) return;
+
+          checkPageBreak(12);
+          doc.setFontSize(14).setFont(config.fontName, 'bold');
+          doc.text(title, margin, y);
+          y += 8;
+          doc.setFontSize(11).setFont(config.fontName, 'normal');
+
+          questions.forEach((q) => {
+            const questionText = `${questionCounter}. ${q}`;
+            const splitText = doc.splitTextToSize(questionText, pageWidth - (margin * 2));
+            const neededHeight = (splitText.length * 5) + 8;
+            checkPageBreak(neededHeight);
+            doc.text(splitText, margin, y);
+            y += neededHeight;
+            questionCounter++;
+          });
+          y+= 5;
+        };
+        
+        addSection("A. Multiple Choice Questions", results.mcqQuestions);
+        questionCounter = 1; // Reset for next section
+        addSection("B. Fill in the Blanks", results.fillInTheBlankQuestions);
+        questionCounter = 1; // Reset for next section
+        addSection("C. Short Answer Questions", results.shortAnswerQuestions);
+
+        if (results.matchTheColumnQuestions && results.matchTheColumnQuestions.length > 0) {
+            checkPageBreak(20);
+            doc.setFontSize(14).setFont(config.fontName, 'bold');
+            doc.text("D. Match the Columns", margin, y);
+            y += 8;
+            doc.setFontSize(11).setFont(config.fontName, 'normal');
+            doc.text("Match the term in Column A with its definition in Column B.", margin, y);
+            y += 8;
+
+            const terms = results.matchTheColumnQuestions.map(p => p.term);
+            const definitions = results.matchTheColumnQuestions.map(p => p.definition);
+            const shuffledDefinitions = shuffleArray(definitions);
+
+            const colAstartX = margin;
+            const colBstartX = pageWidth / 2 + 5;
+            const colWidth = (pageWidth / 2) - margin - 10;
+            const rowLineHeight = 5;
+            const rowPadding = 4;
+            
+            const drawHeader = () => {
+                doc.setFont(config.fontName, 'bold');
                 doc.text("Column A", colAstartX, y);
                 doc.text("Column B", colBstartX, y);
-                y += 7;
-                doc.setFont('helvetica', 'normal');
-            }
+                y += rowLineHeight + rowPadding;
+                doc.setFont(config.fontName, 'normal');
+            };
 
-            doc.text(termLines, colAstartX, y);
-            doc.text(defLines, colBstartX, y);
-            
-            y += rowHeight;
+            drawHeader();
+
+            for (let i = 0; i < terms.length; i++) {
+                const termText = `${i + 1}. ${terms[i]}`;
+                const defText = `${String.fromCharCode(97 + i)}. ${shuffledDefinitions[i]}`;
+                
+                const termLines = doc.splitTextToSize(termText, colWidth);
+                const defLines = doc.splitTextToSize(defText, colWidth);
+                const lineCount = Math.max(termLines.length, defLines.length);
+                const neededHeight = lineCount * rowLineHeight + rowPadding;
+
+                if(checkPageBreak(neededHeight)) {
+                    drawHeader();
+                }
+
+                doc.text(termLines, colAstartX, y);
+                doc.text(defLines, colBstartX, y);
+                y += neededHeight;
+            }
+        }
+        
+        doc.save(`sahayak-worksheet-grade-${form.getValues('gradeLevel')}-${selectedLang}.pdf`);
+        toast({ title: "PDF Download Started!" });
+    } catch(err: any) {
+        toast({
+            variant: "destructive",
+            title: "PDF Generation Failed",
+            description: err.message || "Could not generate PDF. The required font may be unavailable."
         });
-        y += 10;
+    } finally {
+        setIsDownloading(false);
     }
-    
-    doc.save(`sahayak-worksheet-grade-${form.getValues('gradeLevel')}.pdf`);
-    toast({ title: "PDF Download Started!" });
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -199,12 +245,12 @@ export default function ScannerPage() {
       const photoDataUri = await toDataUri(file);
       const input: TextbookScannerInput = { 
         photoDataUri, 
-        gradeLevel: values.gradeLevel 
+        gradeLevel: values.gradeLevel,
+        language: values.language,
       };
       const result = await textbookScanner(input);
       setResults(result);
 
-      // Save to Firestore only for real users
       if (user && user.uid !== 'demo-user' && storage && db) {
         const storageRef = ref(storage, `textbookUploads/${user.uid}/${Date.now()}-${file.name}`);
         await uploadBytes(storageRef, file);
@@ -214,6 +260,7 @@ export default function ScannerPage() {
             imageURL: imageUrl,
             resultText: JSON.stringify(result),
             grade: values.gradeLevel,
+            language: values.language,
             createdAt: serverTimestamp(),
         });
         toast({ title: "Questions generated and saved!" });
@@ -278,6 +325,28 @@ export default function ScannerPage() {
                     </FormItem>
                   )}
                 />
+                 <FormField
+                  control={form.control}
+                  name="language"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Language of Textbook Page</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a language" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Object.entries(languageConfig).map(([key, value]) => (
+                            <SelectItem key={key} value={key}>{value.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="gradeLevel"
@@ -300,7 +369,7 @@ export default function ScannerPage() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" className="w-full" disabled={isLoading || isDownloading}>
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Generate Questions"}
                 </Button>
               </form>
@@ -310,7 +379,6 @@ export default function ScannerPage() {
       </div>
 
       <div className="flex flex-col gap-4">
-        {/* On-screen interactive view */}
         <div className="screen-only flex flex-col gap-4 flex-1">
             <header>
                 <h2 className="text-2xl font-bold tracking-tight font-headline">Generated Questions</h2>
@@ -324,7 +392,10 @@ export default function ScannerPage() {
             ) : results ? (
                 <>
                 <div className="flex justify-end mb-4">
-                    <Button onClick={handleDownloadPdf}><Download className="mr-2 h-4 w-4"/> Download PDF</Button>
+                    <Button onClick={handleDownloadPdf} disabled={isLoading || isDownloading}>
+                        {isDownloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Download className="mr-2 h-4 w-4"/>} 
+                        {languageConfig[form.getValues('language')].buttonText}
+                    </Button>
                 </div>
                 <Card>
                 <CardContent className="p-0">

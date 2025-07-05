@@ -19,6 +19,7 @@ const TextbookScannerInputSchema = z.object({
       "A photo of a textbook, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
   gradeLevel: z.string().describe('The grade level of the textbook content.'),
+  language: z.enum(['en', 'hi', 'mr', 'ta']).describe('The language of the textbook content.'),
 });
 export type TextbookScannerInput = z.infer<typeof TextbookScannerInputSchema>;
 
@@ -45,7 +46,7 @@ const prompt = ai.definePrompt({
   name: 'textbookScannerPrompt',
   input: {schema: TextbookScannerInputSchema},
   output: {schema: TextbookScannerOutputSchema},
-  prompt: `You are a teacher's assistant that helps generate questions from textbook images.
+  prompt: `You are a teacher's assistant that helps generate questions from textbook images. The questions you generate MUST be in the requested language.
 
   Analyze the content from the image provided. Based on the text, generate a comprehensive worksheet suitable for the specified grade level. Create at least 2-3 questions for each category if the text allows.
 
@@ -57,6 +58,7 @@ const prompt = ai.definePrompt({
   The questions must be based *only* on the text visible in the image.
 
   Grade Level: {{{gradeLevel}}}
+  Language: {{{language}}}
   Image:
   {{media url=photoDataUri}}
   `,
