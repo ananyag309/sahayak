@@ -73,8 +73,11 @@ export default function ChatPage() {
             const recognition = new SpeechRecognition();
             recognition.continuous = true;
             recognition.interimResults = true;
+            
             recognition.onstart = () => setIsListening(true);
+            
             recognition.onend = () => setIsListening(false);
+            
             recognition.onresult = (event: any) => {
                 let finalTranscript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
@@ -86,17 +89,27 @@ export default function ChatPage() {
                     form.setValue('question', form.getValues('question') + finalTranscript);
                 }
             };
+            
              recognition.onerror = (event: any) => {
+                setIsListening(false); // Make sure to stop listening on error
                 toast({
                     variant: 'destructive',
                     title: 'Speech Recognition Error',
-                    description: event.error === 'not-allowed' ? 'Microphone access denied.' : 'An error occurred during speech recognition.',
+                    description: event.error === 'not-allowed' ? 'Microphone access denied.' : `An error occurred: ${event.error}`,
                 });
             };
+
             recognitionRef.current = recognition;
         }
     } catch (error) {
         console.error("Speech recognition is not supported in this browser.", error);
+    }
+
+    // Cleanup on unmount
+    return () => {
+        if (recognitionRef.current) {
+            recognitionRef.current.stop();
+        }
     }
   }, [form, toast]);
 
@@ -105,10 +118,18 @@ export default function ChatPage() {
     if (recognition) {
       if (isListening) {
         recognition.stop();
+        // Immediately update UI for better responsiveness
+        setIsListening(false); 
       } else {
-        const langMap = { en: 'en-US', hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN' };
-        recognition.lang = langMap[form.getValues('language')];
-        recognition.start();
+        try {
+            const langMap = { en: 'en-US', hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN' };
+            recognition.lang = langMap[form.getValues('language')];
+            recognition.start();
+        } catch (err) {
+            // This can happen if recognition is already running and start() is called again.
+            console.error("Could not start speech recognition.", err);
+            toast({ variant: 'destructive', title: 'Could not start listening.', description: 'Please try again.'});
+        }
       }
     } else {
          toast({ variant: 'destructive', title: 'Feature Not Supported', description: 'Speech recognition is not available in your browser.'});
