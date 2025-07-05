@@ -27,6 +27,7 @@ const formSchema = z.object({
 });
 
 type Message = {
+  id: number;
   role: "user" | "assistant";
   content: string;
   imageUrl?: string | null;
@@ -175,7 +176,7 @@ export default function ChatPage() {
     }
     
     setIsLoading(true);
-    const userMessage: Message = { role: "user", content: values.question, imageUrl: imagePreview };
+    const userMessage: Message = { id: Date.now(), role: "user", content: values.question, imageUrl: imagePreview };
     setMessages(prev => [...prev, userMessage]);
     
     let input: AIChatInput = { ...values };
@@ -193,7 +194,7 @@ export default function ChatPage() {
       }
 
       const result = await aiChat(input);
-      setMessages(prev => [...prev, { role: "assistant", content: result.response }]);
+      setMessages(prev => [...prev, { id: Date.now() + 1, role: "assistant", content: result.response }]);
       
       if (user && db) {
         await addDoc(collection(db, "chatResponses"), {
@@ -214,7 +215,6 @@ export default function ChatPage() {
         title: "An error occurred",
         description: error.message || "Failed to get a response from the AI. Please try again.",
       });
-       setMessages(prev => prev.filter(m => m !== userMessage));
     } finally {
       setIsLoading(false);
     }
@@ -234,8 +234,8 @@ export default function ChatPage() {
               {messages.length === 0 && (
                 <div className="text-center text-muted-foreground pt-16">No messages yet. Start by asking a question below.</div>
               )}
-              {messages.map((message, index) => (
-                <div key={index} className={`flex items-start gap-4 ${message.role === "user" ? "justify-end" : ""}`}>
+              {messages.map((message) => (
+                <div key={message.id} className={`flex items-start gap-4 ${message.role === "user" ? "justify-end" : ""}`}>
                   {message.role === "assistant" && (
                     <Avatar className="bg-primary text-primary-foreground">
                       <AvatarFallback>AI</AvatarFallback>
