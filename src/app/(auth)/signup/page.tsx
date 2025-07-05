@@ -85,10 +85,6 @@ export default function SignupPage() {
           createdAt: serverTimestamp(),
         });
       }
-      toast({
-        title: "Account Ready!",
-        description: "Welcome to Sahayak! Redirecting you to the dashboard.",
-      });
     } catch (error: any) {
         let description: React.ReactNode = "An unexpected error occurred. Please try again.";
         if (error.message && error.message.includes('identity-toolkit')) {
@@ -109,14 +105,14 @@ export default function SignupPage() {
         } else if (error.code === 'auth/operation-not-allowed') {
              description = (
                 <span>
-                Google Sign-in is not enabled. Please enable it in your{' '}
+                Google Sign-in is not enabled. Please{' '}
                 <a
                     href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/authentication/providers`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="underline font-medium"
                 >
-                    Firebase project settings
+                    click here to enable it in your Firebase project
                 </a>.
                 </span>
             );
@@ -160,24 +156,20 @@ export default function SignupPage() {
         createdAt: serverTimestamp(),
       });
 
-      toast({
-        title: "Account Created!",
-        description: "Welcome to Sahayak! Redirecting you to the dashboard.",
-      });
     } catch (error: any) {
       let description: React.ReactNode = "An unexpected error occurred. Please try again.";
 
       if (error.code === 'auth/operation-not-allowed') {
         description = (
           <span>
-            Email/Password sign-in is not enabled. Please enable it in your{' '}
+            Email/Password sign-up is not enabled. Please{' '}
             <a
               href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/authentication/providers`}
               target="_blank"
               rel="noopener noreferrer"
               className="underline font-medium"
             >
-              Firebase project settings
+              click here to enable it in your Firebase project
             </a>.
           </span>
         );

@@ -79,15 +79,6 @@ export default function LoginPage() {
           language: "en",
           createdAt: serverTimestamp(),
         });
-        toast({
-          title: "Account Created!",
-          description: "Welcome to Sahayak! Redirecting you to the dashboard.",
-        });
-      } else {
-        toast({
-          title: "Login Successful",
-          description: "Welcome back! Redirecting you to the dashboard.",
-        });
       }
     } catch (error: any) {
         let description: React.ReactNode = "An unexpected error occurred. Please try again.";
@@ -147,10 +138,6 @@ export default function LoginPage() {
     }
     try {
       await signInWithEmailAndPassword(auth, values.email, values.password);
-      toast({
-        title: "Login Successful",
-        description: "Welcome back! Redirecting you to the dashboard.",
-      });
     } catch (error: any) {
       let description: React.ReactNode = "An unexpected error occurred. Please try again.";
 
@@ -159,14 +146,14 @@ export default function LoginPage() {
       } else if (error.code === 'auth/operation-not-allowed') {
           description = (
             <span>
-              Email/Password sign-in is not enabled. Please enable it in your{' '}
+              Email/Password sign-in is not enabled. Please{' '}
               <a
                 href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/authentication/providers`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline font-medium"
               >
-                Firebase project settings
+                click here to enable it in your Firebase project
               </a>.
             </span>
           );
