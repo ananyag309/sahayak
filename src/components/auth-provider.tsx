@@ -29,7 +29,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       return () => unsubscribe();
     } else {
-      setLoading(false); // No firebase config, so not loading.
+      // Firebase is not configured.
+      // To allow you to preview the app's UI, we'll create a mock user.
+      // Note: App features that require a backend will not work.
+      console.warn("Firebase not configured. Using a mock user for UI preview.");
+      const mockUser = {
+        uid: 'mock-user-uid',
+        displayName: 'Demo User',
+        email: 'demo@example.com',
+        photoURL: null,
+      } as User;
+      setUser(mockUser);
+      setLoading(false);
     }
   }, []);
 
