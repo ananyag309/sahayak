@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -14,7 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Download, Loader2, Mic, Paperclip, Send, User, X } from "lucide-react";
+import { Copy, Download, Loader2, Mic, Paperclip, Send, User, X, AlertCircle, RefreshCw } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { db, storage } from "@/lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
@@ -26,11 +27,14 @@ const formSchema = z.object({
   language: z.enum(["en", "hi", "mr", "ta"]),
 });
 
+// Add isError and inputData for retry functionality
 type Message = {
   id: number;
   role: "user" | "assistant";
   content: string;
   imageUrl?: string | null;
+  isError?: boolean;
+  inputData?: AIChatInput; 
 };
 
 export default function ChatPage() {
@@ -39,12 +43,11 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   
-  // States for new features
   const [isListening, setIsListening] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  const recognitionRef = useRef<any>(null); // Using `any` for SpeechRecognition for broader browser support
+  const recognitionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -56,7 +59,6 @@ export default function ChatPage() {
     },
   });
 
-  // Scroll to bottom of chat
   useEffect(() => {
     if (scrollAreaRef.current) {
         scrollAreaRef.current.scrollTo({
@@ -66,7 +68,6 @@ export default function ChatPage() {
     }
   }, [messages]);
 
-  // Setup Speech Recognition
   useEffect(() => {
     try {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -76,7 +77,6 @@ export default function ChatPage() {
             recognition.interimResults = true;
             
             recognition.onstart = () => setIsListening(true);
-            
             recognition.onend = () => setIsListening(false);
             
             recognition.onresult = (event: any) => {
@@ -92,7 +92,7 @@ export default function ChatPage() {
             };
             
              recognition.onerror = (event: any) => {
-                setIsListening(false); // Make sure to stop listening on error
+                setIsListening(false);
                 toast({
                     variant: 'destructive',
                     title: 'Speech Recognition Error',
@@ -106,7 +106,6 @@ export default function ChatPage() {
         console.error("Speech recognition is not supported in this browser.", error);
     }
 
-    // Cleanup on unmount
     return () => {
         if (recognitionRef.current) {
             recognitionRef.current.stop();
@@ -119,7 +118,6 @@ export default function ChatPage() {
     if (recognition) {
       if (isListening) {
         recognition.stop();
-        // Immediately update UI for better responsiveness
         setIsListening(false); 
       } else {
         try {
@@ -127,7 +125,6 @@ export default function ChatPage() {
             recognition.lang = langMap[form.getValues('language')];
             recognition.start();
         } catch (err) {
-            // This can happen if recognition is already running and start() is called again.
             console.error("Could not start speech recognition.", err);
             toast({ variant: 'destructive', title: 'Could not start listening.', description: 'Please try again.'});
         }
@@ -168,57 +165,87 @@ export default function ChatPage() {
     URL.revokeObjectURL(url);
     toast({ title: "Download started!" });
   };
-  
+
+  // Centralized submission logic
+  const handleAiSubmission = async (input: AIChatInput, userMessageId: number, isRetry = false) => {
+      setIsLoading(true);
+      if (isRetry) {
+          // Mark the error message as resolved before retrying
+          setMessages(prev => prev.map(m => m.id === userMessageId ? { ...m, isError: false } : m));
+      }
+
+      try {
+          // Get a persistent URL for Firestore. Only do this for new images, not on retry.
+          let publicImageUrl: string | null = null;
+          if (imageFile && !isRetry) {
+              if (user && user.uid !== 'demo-user' && storage && imagePreview) {
+                  const storageRef = ref(storage, `chatImages/${user.uid}/${Date.now()}_${imageFile.name}`);
+                  const uploadResult = await uploadString(storageRef, imagePreview, 'data_url');
+                  publicImageUrl = await getDownloadURL(uploadResult.ref);
+              }
+          }
+
+          const result = await aiChat(input);
+          
+          setMessages(prev => [...prev, { id: Date.now(), role: "assistant", content: result.response }]);
+          
+          if (user && db) {
+              await addDoc(collection(db, "chatResponses"), {
+                  userId: user.uid,
+                  prompt: input.question,
+                  imageUrl: publicImageUrl,
+                  response: result.response,
+                  language: input.language,
+                  createdAt: serverTimestamp(),
+              });
+          }
+          if (!isRetry) {
+              form.reset({ ...form.getValues(), question: "" });
+              removeImage();
+          }
+      } catch (error: any) {
+          toast({
+              variant: "destructive",
+              title: "Failed to fetch response",
+              description: "Please try again.",
+          });
+          // Mark the user's message as having an error
+          setMessages(prev => prev.map(m => m.id === userMessageId ? { ...m, isError: true } : m));
+      } finally {
+          setIsLoading(false);
+      }
+  };
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!values.question && !imageFile) {
+    if (!values.question.trim() && !imageFile) {
         toast({ variant: 'destructive', title: 'Input Required', description: 'Please enter a question or upload an image.' });
         return;
     }
+
+    const input: AIChatInput = {
+        question: values.question,
+        language: values.language,
+        imageDataUri: imagePreview ?? undefined,
+    };
     
-    setIsLoading(true);
-    const userMessage: Message = { id: Date.now(), role: "user", content: values.question, imageUrl: imagePreview };
+    const userMessage: Message = {
+        id: Date.now(),
+        role: "user",
+        content: values.question,
+        imageUrl: imagePreview,
+        inputData: input // Save input for retry
+    };
+
     setMessages(prev => [...prev, userMessage]);
     
-    let input: AIChatInput = { ...values };
-    let publicImageUrl: string | null = null;
-
-    try {
-      if (imageFile) {
-        // We send a data URI to Genkit, but upload to Storage to get a persistent URL for Firestore
-        if (user && user.uid !== 'demo-user' && storage && imagePreview) {
-          const storageRef = ref(storage, `chatImages/${user.uid}/${Date.now()}_${imageFile.name}`);
-          const uploadResult = await uploadString(storageRef, imagePreview, 'data_url');
-          publicImageUrl = await getDownloadURL(uploadResult.ref);
-        }
-        input.imageDataUri = imagePreview ?? undefined;
-      }
-
-      const result = await aiChat(input);
-      setMessages(prev => [...prev, { id: Date.now() + 1, role: "assistant", content: result.response }]);
-      
-      if (user && db) {
-        await addDoc(collection(db, "chatResponses"), {
-          userId: user.uid,
-          prompt: values.question,
-          imageUrl: publicImageUrl, // Save persistent URL
-          response: result.response,
-          language: values.language,
-          createdAt: serverTimestamp(),
-        });
-      }
-
-      form.reset({ ...values, question: "" });
-      removeImage();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "An error occurred",
-        description: error.message || "Failed to get a response from the AI. Please try again.",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    await handleAiSubmission(input, userMessage.id);
   }
+  
+  const handleRetry = (messageToRetry: Message) => {
+    if (messageToRetry.inputData) {
+        handleAiSubmission(messageToRetry.inputData, messageToRetry.id, true);
+    }
+  };
 
   return (
     <div className="h-[calc(100vh-5rem)] flex flex-col">
@@ -248,6 +275,18 @@ export default function ChatPage() {
                         </div>
                     )}
                     {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
+                    
+                    {message.role === "user" && message.isError && (
+                        <div className="flex items-center gap-2 mt-2 text-destructive">
+                           <AlertCircle className="h-4 w-4" />
+                           <span>Failed to get response.</span>
+                           <Button variant="ghost" size="sm" onClick={() => handleRetry(message)} disabled={isLoading}>
+                               <RefreshCw className="mr-2 h-4 w-4" />
+                               Retry
+                           </Button>
+                        </div>
+                    )}
+
                     {message.role === "assistant" && (
                       <div className="flex gap-2 mt-2">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(message.content)}>
