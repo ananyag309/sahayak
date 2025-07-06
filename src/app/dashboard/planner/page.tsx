@@ -5,13 +5,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { generateLessonPlan, type LessonPlanInput } from "@/ai/flows/lesson-planner";
+import { getTeacherFeedback, type TeacherFeedbackOutput } from "@/ai/flows/teacher-feedback";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Copy, Download } from "lucide-react";
+import { Loader2, Copy, Download, Lightbulb } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/components/auth-provider";
@@ -29,6 +30,8 @@ export default function PlannerPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [lessonPlan, setLessonPlan] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<TeacherFeedbackOutput | null>(null);
+  const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -38,6 +41,7 @@ export default function PlannerPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     setLessonPlan(null);
+    setFeedback(null);
     try {
       const input: LessonPlanInput = values;
       const result = await generateLessonPlan(input);
@@ -83,6 +87,31 @@ export default function PlannerPage() {
     a.download = "lesson-plan.txt";
     a.click();
     URL.revokeObjectURL(url);
+  };
+  
+  const handleGetFeedback = async () => {
+    if (!lessonPlan) return;
+    setIsFeedbackLoading(true);
+    setFeedback(null);
+    try {
+        const input = {
+            subject: form.getValues('subject'),
+            grade: form.getValues('grade'),
+            topic: form.getValues('topics'),
+            lessonPlan: lessonPlan,
+        };
+        const result = await getTeacherFeedback(input);
+        setFeedback(result);
+        toast({ title: "Feedback generated!" });
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Feedback Generation Failed",
+            description: "Could not generate feedback at this time. Please try again.",
+        });
+    } finally {
+        setIsFeedbackLoading(false);
+    }
   };
 
   return (
@@ -145,7 +174,7 @@ export default function PlannerPage() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" className="w-full" disabled={isLoading || isFeedbackLoading}>
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Generate Plan"}
                 </Button>
               </form>
@@ -182,6 +211,37 @@ export default function PlannerPage() {
                 )}
             </CardContent>
         </Card>
+        {lessonPlan && (
+            <div className="mt-4">
+                {!feedback && !isFeedbackLoading && (
+                    <Button onClick={handleGetFeedback} variant="outline" className="w-full" disabled={isLoading}>
+                        <Lightbulb className="mr-2 h-4 w-4" /> Get Improvement Tips
+                    </Button>
+                )}
+                {isFeedbackLoading && (
+                    <div className="flex items-center justify-center gap-2 text-muted-foreground p-4">
+                        <Loader2 className="h-5 w-5 animate-spin"/>
+                        <span>Your personal coach is generating feedback...</span>
+                    </div>
+                )}
+                {feedback && (
+                    <Card className="mt-4 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800/50">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-yellow-600 dark:text-yellow-400">
+                                <Lightbulb className="h-6 w-6"/> Engagement Tips
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ul className="space-y-4 list-disc list-inside text-yellow-800 dark:text-yellow-300">
+                                {feedback.tips.map((tip, index) => (
+                                    <li key={index}>{tip}</li>
+                                ))}
+                            </ul>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
+        )}
       </div>
     </div>
   );
