@@ -14,7 +14,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 // Schema for generating the worksheet
-export const GenerateHomeworkSheetInputSchema = z.object({
+const GenerateHomeworkSheetInputSchema = z.object({
   topic: z.string().describe('The topic for the homework sheet.'),
   grade: z.string().describe('The grade level for the homework.'),
   language: z.enum(['en', 'hi', 'mr', 'ta']).describe('The language for the homework sheet.'),
@@ -26,7 +26,7 @@ const QuestionSchema = z.object({
     questionText: z.string().describe('The full text of the question.'),
 });
 
-export const GenerateHomeworkSheetOutputSchema = z.object({
+const GenerateHomeworkSheetOutputSchema = z.object({
   title: z.string().describe('A suitable title for the homework sheet.'),
   instructions: z.string().describe('Brief instructions for the student.'),
   questions: z.array(QuestionSchema).min(3).max(7).describe('An array of 3 to 7 mixed-type questions (e.g., MCQ, short answer, fill-in-the-blank).'),
@@ -35,7 +35,7 @@ export type GenerateHomeworkSheetOutput = z.infer<typeof GenerateHomeworkSheetOu
 
 
 // Schema for generating the answer key
-export const GenerateAnswerKeyInputSchema = z.object({
+const GenerateAnswerKeyInputSchema = z.object({
     questions: z.array(QuestionSchema).describe('The array of questions for which to generate an answer key.'),
     language: z.enum(['en', 'hi', 'mr', 'ta']).describe('The language for the answer key.'),
 });
@@ -46,7 +46,7 @@ const AnswerSchema = z.object({
     answerText: z.string().describe('The detailed answer for the question.'),
 });
 
-export const GenerateAnswerKeyOutputSchema = z.object({
+const GenerateAnswerKeyOutputSchema = z.object({
   answerKey: z.array(AnswerSchema).describe('A corresponding array of detailed answers for the answer key.'),
 });
 export type GenerateAnswerKeyOutput = z.infer<typeof GenerateAnswerKeyOutputSchema>;
