@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -41,6 +42,7 @@ import {
   Laptop,
   Layers,
   LayoutTemplate,
+  Library,
   LogOut,
   Mic,
   Minus,
@@ -60,6 +62,7 @@ const navItems = [
   { href: "/dashboard/planner", icon: BookOpen, label: "Lesson Planner" },
   { href: "/dashboard/games", icon: Gamepad2, label: "Game Generator" },
   { href: "/dashboard/flashcards", icon: Layers, label: "Flashcard Creator" },
+  { href: "/dashboard/library", icon: Library, label: "My Library" },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
