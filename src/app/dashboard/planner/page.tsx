@@ -5,19 +5,14 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { generateLessonPlan, type LessonPlanInput, type Plan } from "@/ai/flows/lesson-planner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Copy, Download, Lightbulb, BookCheck, PencilRuler } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { useAuth } from "@/components/auth-provider";
-import { db } from "@/lib/firebase";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 const formSchema = z.object({
   subject: z.string().min(2, { message: "Subject is required." }),
@@ -27,104 +22,28 @@ const formSchema = z.object({
 });
 
 export default function PlannerPage() {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [lessonPlan, setLessonPlan] = useState<Plan | null>(null);
-  const [tips, setTips] = useState<string[] | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: { subject: "", grade: "", topics: "", language: "en"},
   });
 
-  const formatPlanForDownload = (plan: Plan): string => {
-    let content = `Weekly Lesson Plan\n`;
-    content += `Subject: ${plan.subject}\n`;
-    content += `Grade: ${plan.grade}\n`;
-    content += `Topic: ${plan.topic}\n\n`;
-    content += "----------------------------------------\n\n";
-
-    plan.days.forEach(day => {
-        content += `🗓️ ${day.day}: ${day.topic}\n\n`;
-        content += `  Activities:\n`;
-        day.activities.forEach(act => {
-            content += `    - ${act.activity}\n`;
-            content += `      Materials: ${act.materials}\n\n`;
-        });
-        content += `  Homework: ${day.homework}\n\n`;
-        content += "----------------------------------------\n\n";
-    });
-
-    if (tips && tips.length > 0) {
-        content += "💡 Improvement Tips:\n";
-        tips.forEach(tip => {
-            content += `- ${tip}\n`;
-        });
-    }
-
-    return content;
-  };
-
-  const handleCopy = () => {
-    if (!lessonPlan) return;
-    const planText = formatPlanForDownload(lessonPlan);
-    navigator.clipboard.writeText(planText);
-    toast({ title: "Copied to clipboard!" });
-  };
-
-  const handleDownload = () => {
-    if (!lessonPlan) return;
-    const planText = formatPlanForDownload(lessonPlan);
-    const blob = new Blob([planText], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "lesson-plan.txt";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    setLessonPlan(null);
-    setTips(null);
-    try {
-      const input: LessonPlanInput = values;
-      const result = await generateLessonPlan(input);
-      
-      setLessonPlan(result.plan);
-      setTips(result.tips);
-
-      if (user && db && user.uid !== 'demo-user') {
-        await addDoc(collection(db, "lessonPlans"), {
-          userId: user.uid,
-          ...result.plan,
-          tips: result.tips,
-          createdAt: serverTimestamp(),
-        });
-        toast({ title: "Lesson plan generated and saved!" });
-      } else {
-        toast({ title: "Lesson plan generated!" });
-      }
-      
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Plan Generation Failed",
-        description: error.message || "Failed to generate lesson plan. Please try again.",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    toast({ title: "Generating plan... (functionality currently disabled)" });
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    setIsLoading(false);
   }
 
   return (
     <div className="grid lg:grid-cols-2 gap-8">
       <div>
         <header className="mb-4">
-          <h1 className="text-3xl font-bold tracking-tight font-headline">Enhanced Lesson Planner</h1>
-          <p className="text-muted-foreground">Generate a structured weekly lesson plan with improvement tips.</p>
+          <h1 className="text-3xl font-bold tracking-tight font-headline">Lesson Planner</h1>
+          <p className="text-muted-foreground">Generate a structured weekly lesson plan.</p>
         </header>
         <Card>
           <CardHeader>
@@ -203,7 +122,7 @@ export default function PlannerPage() {
                   )}
                 />
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Generate Plan & Tips"}
+                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Generate Plan"}
                 </Button>
               </form>
             </Form>
@@ -223,67 +142,7 @@ export default function PlannerPage() {
               </Card>
           )}
 
-          {lessonPlan && (
-            <Card>
-                <CardHeader>
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <CardTitle>{lessonPlan.subject} - Grade {lessonPlan.grade}</CardTitle>
-                            <CardDescription>{lessonPlan.topic}</CardDescription>
-                        </div>
-                        <div className="flex gap-2">
-                            <Button variant="ghost" size="icon" onClick={handleCopy} aria-label="Copy plan"><Copy className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="icon" onClick={handleDownload} aria-label="Download plan"><Download className="h-4 w-4" /></Button>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <Accordion type="multiple" defaultValue={['Monday']} className="w-full">
-                        {lessonPlan.days.map(day => (
-                            <AccordionItem key={day.day} value={day.day}>
-                                <AccordionTrigger className="font-semibold text-lg">{day.day}: {day.topic}</AccordionTrigger>
-                                <AccordionContent className="space-y-4 pl-2">
-                                    <div>
-                                        <h4 className="font-semibold mb-2 flex items-center gap-2"><PencilRuler className="h-4 w-4 text-primary" />Activities</h4>
-                                        <ul className="list-disc list-inside space-y-2">
-                                            {day.activities.map((act, index) => (
-                                                <li key={index}>
-                                                    {act.activity}
-                                                    <p className="text-sm text-muted-foreground ml-4"><span className="font-semibold">Materials:</span> {act.materials}</p>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                    <div>
-                                        <h4 className="font-semibold mb-2 flex items-center gap-2"><BookCheck className="h-4 w-4 text-primary" />Homework</h4>
-                                        <p>{day.homework}</p>
-                                    </div>
-                                </AccordionContent>
-                            </AccordionItem>
-                        ))}
-                    </Accordion>
-                </CardContent>
-            </Card>
-          )}
-          
-          {tips && (
-              <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800/50">
-                  <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-yellow-600 dark:text-yellow-400">
-                          <Lightbulb className="h-6 w-6"/> Improvement Tips
-                      </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                      <ul className="space-y-3 list-disc list-inside text-yellow-800 dark:text-yellow-300">
-                          {tips.map((tip, index) => (
-                              <li key={index}>{tip}</li>
-                          ))}
-                      </ul>
-                  </CardContent>
-              </Card>
-          )}
-
-          {!isLoading && !lessonPlan && (
+          {!isLoading && (
               <Card className="min-h-[500px] flex items-center justify-center">
                   <p className="text-muted-foreground text-center">
                       Fill out the form to generate your lesson plan.
