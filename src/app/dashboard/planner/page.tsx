@@ -66,6 +66,25 @@ export default function PlannerPage() {
     return content;
   };
 
+  const handleCopy = () => {
+    if (!lessonPlan) return;
+    const planText = formatPlanForDownload(lessonPlan);
+    navigator.clipboard.writeText(planText);
+    toast({ title: "Copied to clipboard!" });
+  };
+
+  const handleDownload = () => {
+    if (!lessonPlan) return;
+    const planText = formatPlanForDownload(lessonPlan);
+    const blob = new Blob([planText], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "lesson-plan.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     setLessonPlan(null);
@@ -99,26 +118,6 @@ export default function PlannerPage() {
       setIsLoading(false);
     }
   }
-
-  const handleCopy = () => {
-    if (!lessonPlan) return;
-    const planText = formatPlanForDownload(lessonPlan);
-    navigator.clipboard.writeText(planText);
-    toast({ title: "Copied to clipboard!" });
-  };
-
-  const handleDownload = () => {
-    if (!lessonPlan) return;
-    const planText = formatPlanForDownload(lessonPlan);
-    const blob = new Blob([planText], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "lesson-plan.txt";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-  
 
   return (
     <div className="grid lg:grid-cols-2 gap-8">
