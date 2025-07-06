@@ -36,7 +36,7 @@ import { auth } from "@/lib/firebase";
 import {
   BookOpen,
   BrainCircuit,
-  CalendarDays,
+  ClipboardList,
   Gamepad2,
   Home,
   Laptop,
@@ -60,6 +60,7 @@ const navItems = [
   { href: "/dashboard/diagram", icon: LayoutTemplate, label: "Diagram Generator" },
   { href: "/dashboard/reading", icon: Mic, label: "Reading Assessment" },
   { href: "/dashboard/planner", icon: BookOpen, label: "Lesson Planner" },
+  { href: "/dashboard/homework", icon: ClipboardList, label: "Homework Generator" },
   { href: "/dashboard/games", icon: Gamepad2, label: "Game Generator" },
   { href: "/dashboard/flashcards", icon: Layers, label: "Flashcard Creator" },
   { href: "/dashboard/library", icon: Library, label: "My Library" },

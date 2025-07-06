@@ -9,6 +9,7 @@ import {
   Gamepad2,
   Layers,
   ArrowRight,
+  ClipboardList,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -42,6 +43,12 @@ const tools = [
       description: 'Build weekly lesson plans with AI.',
       href: '/dashboard/planner',
       icon: <BookOpen className="h-8 w-8 text-primary" />,
+    },
+    {
+      title: 'Homework Generator',
+      description: 'Create homework sheets with answer keys.',
+      href: '/dashboard/homework',
+      icon: <ClipboardList className="h-8 w-8 text-primary" />,
     },
     {
       title: 'Game Generator',
