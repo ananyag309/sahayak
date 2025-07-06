@@ -4,17 +4,16 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { generateLessonPlan, type LessonPlanInput } from "@/ai/flows/lesson-planner";
-import { getTeacherFeedback, type TeacherFeedbackOutput } from "@/ai/flows/teacher-feedback";
+import { generateLessonPlan, type LessonPlanInput, type Plan } from "@/ai/flows/lesson-planner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Copy, Download, Lightbulb } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader2, Copy, Download, Lightbulb, BookCheck, PencilRuler } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useAuth } from "@/components/auth-provider";
 import { db } from "@/lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
@@ -23,37 +22,65 @@ const formSchema = z.object({
   subject: z.string().min(2, { message: "Subject is required." }),
   grade: z.string().min(1, { message: "Grade is required." }),
   topics: z.string().min(5, { message: "Please list some topics." }),
+  language: z.enum(["en", "hi", "mr", "ta"]),
 });
 
 export default function PlannerPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [lessonPlan, setLessonPlan] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<TeacherFeedbackOutput | null>(null);
-  const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
+  const [lessonPlan, setLessonPlan] = useState<Plan | null>(null);
+  const [tips, setTips] = useState<string[] | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { subject: "", grade: "", topics: "" },
+    defaultValues: { subject: "", grade: "", topics: "", language: "en"},
   });
+
+  const formatPlanForDownload = (plan: Plan): string => {
+    let content = `Weekly Lesson Plan\n`;
+    content += `Subject: ${plan.subject}\n`;
+    content += `Grade: ${plan.grade}\n`;
+    content += `Topic: ${plan.topic}\n\n`;
+    content += "----------------------------------------\n\n";
+
+    plan.days.forEach(day => {
+        content += `🗓️ ${day.day}: ${day.topic}\n\n`;
+        content += `  Activities:\n`;
+        day.activities.forEach(act => {
+            content += `    - ${act.activity}\n`;
+            content += `      Materials: ${act.materials}\n\n`;
+        });
+        content += `  Homework: ${day.homework}\n\n`;
+        content += "----------------------------------------\n\n";
+    });
+
+    if (tips && tips.length > 0) {
+        content += "💡 Improvement Tips:\n";
+        tips.forEach(tip => {
+            content += `- ${tip}\n`;
+        });
+    }
+
+    return content;
+  };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     setLessonPlan(null);
-    setFeedback(null);
+    setTips(null);
     try {
       const input: LessonPlanInput = values;
       const result = await generateLessonPlan(input);
-      setLessonPlan(result.weeklyPlan);
+      
+      setLessonPlan(result.plan);
+      setTips(result.tips);
 
-      if (user && db) {
+      if (user && db && user.uid !== 'demo-user') {
         await addDoc(collection(db, "lessonPlans"), {
           userId: user.uid,
-          subject: values.subject,
-          grade: values.grade,
-          topics: values.topics,
-          weekPlan: result.weeklyPlan,
+          ...result.plan,
+          tips: result.tips,
           createdAt: serverTimestamp(),
         });
         toast({ title: "Lesson plan generated and saved!" });
@@ -74,13 +101,15 @@ export default function PlannerPage() {
 
   const handleCopy = () => {
     if (!lessonPlan) return;
-    navigator.clipboard.writeText(lessonPlan);
+    const planText = formatPlanForDownload(lessonPlan);
+    navigator.clipboard.writeText(planText);
     toast({ title: "Copied to clipboard!" });
   };
 
   const handleDownload = () => {
     if (!lessonPlan) return;
-    const blob = new Blob([lessonPlan], { type: "text/plain" });
+    const planText = formatPlanForDownload(lessonPlan);
+    const blob = new Blob([planText], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -89,37 +118,13 @@ export default function PlannerPage() {
     URL.revokeObjectURL(url);
   };
   
-  const handleGetFeedback = async () => {
-    if (!lessonPlan) return;
-    setIsFeedbackLoading(true);
-    setFeedback(null);
-    try {
-        const input = {
-            subject: form.getValues('subject'),
-            grade: form.getValues('grade'),
-            topic: form.getValues('topics'),
-            lessonPlan: lessonPlan,
-        };
-        const result = await getTeacherFeedback(input);
-        setFeedback(result);
-        toast({ title: "Feedback generated!" });
-    } catch (error: any) {
-        toast({
-            variant: "destructive",
-            title: "Feedback Generation Failed",
-            description: "Could not generate feedback at this time. Please try again.",
-        });
-    } finally {
-        setIsFeedbackLoading(false);
-    }
-  };
 
   return (
     <div className="grid lg:grid-cols-2 gap-8">
       <div>
         <header className="mb-4">
-          <h1 className="text-3xl font-bold tracking-tight font-headline">Lesson Planner</h1>
-          <p className="text-muted-foreground">Generate a weekly lesson plan with topics, activities, and materials.</p>
+          <h1 className="text-3xl font-bold tracking-tight font-headline">Enhanced Lesson Planner</h1>
+          <p className="text-muted-foreground">Generate a structured weekly lesson plan with improvement tips.</p>
         </header>
         <Card>
           <CardHeader>
@@ -149,12 +154,35 @@ export default function PlannerPage() {
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a grade level" />
-                          </SelectTrigger>
+                          </Trigger>
                         </FormControl>
                         <SelectContent>
                           {[...Array(12)].map((_, i) => (
                             <SelectItem key={i + 1} value={`${i + 1}`}>{`Grade ${i + 1}`}</SelectItem>
                           ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="language"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Language</FormLabel>
+                       <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a language" />
+                          </Trigger>
+                        </FormControl>
+                        <SelectContent>
+                            <SelectItem value="en">English</SelectItem>
+                            <SelectItem value="hi">Hindi</SelectItem>
+                            <SelectItem value="mr">Marathi</SelectItem>
+                            <SelectItem value="ta">Tamil</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -174,8 +202,8 @@ export default function PlannerPage() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={isLoading || isFeedbackLoading}>
-                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Generate Plan"}
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Generate Plan & Tips"}
                 </Button>
               </form>
             </Form>
@@ -186,62 +214,83 @@ export default function PlannerPage() {
       <div>
         <header className="mb-4">
           <h2 className="text-2xl font-bold tracking-tight font-headline">Generated Weekly Plan</h2>
-          <p className="text-muted-foreground">Your lesson plan will appear below.</p>
+          <p className="text-muted-foreground">Your structured lesson plan will appear below.</p>
         </header>
-        <Card className="min-h-[500px] flex flex-col">
-            <CardContent className="p-6 flex-1 flex flex-col">
-                {isLoading && <div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary"/></div>}
-                {lessonPlan && (
-                    <>
-                        <div className="flex justify-end gap-2 mb-2">
+        <div className="space-y-4">
+          {isLoading && (
+              <Card className="min-h-[500px] flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary"/>
+              </Card>
+          )}
+
+          {lessonPlan && (
+            <Card>
+                <CardHeader>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <CardTitle>{lessonPlan.subject} - Grade {lessonPlan.grade}</CardTitle>
+                            <CardDescription>{lessonPlan.topic}</CardDescription>
+                        </div>
+                        <div className="flex gap-2">
                             <Button variant="ghost" size="icon" onClick={handleCopy} aria-label="Copy plan"><Copy className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" onClick={handleDownload} aria-label="Download plan"><Download className="h-4 w-4" /></Button>
                         </div>
-                        <ScrollArea className="flex-1 rounded-md border p-4 bg-muted">
-                            <pre className="text-sm whitespace-pre-wrap font-sans">{lessonPlan}</pre>
-                        </ScrollArea>
-                    </>
-                )}
-                {!isLoading && !lessonPlan && (
-                    <div className="flex-1 flex items-center justify-center">
-                        <p className="text-muted-foreground text-center">
-                           Fill out the form to generate your lesson plan.
-                        </p>
                     </div>
-                )}
-            </CardContent>
-        </Card>
-        {lessonPlan && (
-            <div className="mt-4">
-                {!feedback && !isFeedbackLoading && (
-                    <Button onClick={handleGetFeedback} variant="outline" className="w-full" disabled={isLoading}>
-                        <Lightbulb className="mr-2 h-4 w-4" /> Get Improvement Tips
-                    </Button>
-                )}
-                {isFeedbackLoading && (
-                    <div className="flex items-center justify-center gap-2 text-muted-foreground p-4">
-                        <Loader2 className="h-5 w-5 animate-spin"/>
-                        <span>Your personal coach is generating feedback...</span>
-                    </div>
-                )}
-                {feedback && (
-                    <Card className="mt-4 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800/50">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-yellow-600 dark:text-yellow-400">
-                                <Lightbulb className="h-6 w-6"/> Engagement Tips
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <ul className="space-y-4 list-disc list-inside text-yellow-800 dark:text-yellow-300">
-                                {feedback.tips.map((tip, index) => (
-                                    <li key={index}>{tip}</li>
-                                ))}
-                            </ul>
-                        </CardContent>
-                    </Card>
-                )}
-            </div>
-        )}
+                </CardHeader>
+                <CardContent>
+                    <Accordion type="multiple" defaultValue={['Monday']} className="w-full">
+                        {lessonPlan.days.map(day => (
+                            <AccordionItem key={day.day} value={day.day}>
+                                <AccordionTrigger className="font-semibold text-lg">{day.day}: {day.topic}</AccordionTrigger>
+                                <AccordionContent className="space-y-4 pl-2">
+                                    <div>
+                                        <h4 className="font-semibold mb-2 flex items-center gap-2"><PencilRuler className="h-4 w-4 text-primary" />Activities</h4>
+                                        <ul className="list-disc list-inside space-y-2">
+                                            {day.activities.map((act, index) => (
+                                                <li key={index}>
+                                                    {act.activity}
+                                                    <p className="text-sm text-muted-foreground ml-4"><span className="font-semibold">Materials:</span> {act.materials}</p>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold mb-2 flex items-center gap-2"><BookCheck className="h-4 w-4 text-primary" />Homework</h4>
+                                        <p>{day.homework}</p>
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))}
+                    </Accordion>
+                </CardContent>
+            </Card>
+          )}
+          
+          {tips && (
+              <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800/50">
+                  <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-yellow-600 dark:text-yellow-400">
+                          <Lightbulb className="h-6 w-6"/> Improvement Tips
+                      </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                      <ul className="space-y-3 list-disc list-inside text-yellow-800 dark:text-yellow-300">
+                          {tips.map((tip, index) => (
+                              <li key={index}>{tip}</li>
+                          ))}
+                      </ul>
+                  </CardContent>
+              </Card>
+          )}
+
+          {!isLoading && !lessonPlan && (
+              <Card className="min-h-[500px] flex items-center justify-center">
+                  <p className="text-muted-foreground text-center">
+                      Fill out the form to generate your lesson plan.
+                  </p>
+              </Card>
+          )}
+        </div>
       </div>
     </div>
   );
