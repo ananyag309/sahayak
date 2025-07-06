@@ -29,7 +29,7 @@ const QuestionSchema = z.object({
 export const GenerateHomeworkSheetOutputSchema = z.object({
   title: z.string().describe('A suitable title for the homework sheet.'),
   instructions: z.string().describe('Brief instructions for the student.'),
-  questions: z.array(QuestionSchema).length(5).describe('An array of exactly 5 mixed-type questions (e.g., MCQ, short answer, fill-in-the-blank).'),
+  questions: z.array(QuestionSchema).min(3).max(7).describe('An array of 3 to 7 mixed-type questions (e.g., MCQ, short answer, fill-in-the-blank).'),
 });
 export type GenerateHomeworkSheetOutput = z.infer<typeof GenerateHomeworkSheetOutputSchema>;
 
@@ -47,7 +47,7 @@ const AnswerSchema = z.object({
 });
 
 export const GenerateAnswerKeyOutputSchema = z.object({
-  answerKey: z.array(AnswerSchema).length(5).describe('A corresponding array of 5 detailed answers for the answer key.'),
+  answerKey: z.array(AnswerSchema).describe('A corresponding array of detailed answers for the answer key.'),
 });
 export type GenerateAnswerKeyOutput = z.infer<typeof GenerateAnswerKeyOutputSchema>;
 
@@ -63,7 +63,7 @@ const homeworkSheetPrompt = ai.definePrompt({
   output: {schema: GenerateHomeworkSheetOutputSchema},
   prompt: `You are an expert teacher creating a homework assignment for students. Generate a worksheet based on the provided topic, grade, and language.
 
-The worksheet must contain a title, instructions, and exactly 5 questions of mixed types (e.g., multiple-choice, fill-in-the-blank, short answer).
+The worksheet must contain a title, instructions, and between 3 and 7 questions of mixed types (e.g., multiple-choice, fill-in-the-blank, short answer).
 The entire output (title, instructions, and questions) must be in the specified language.
 DO NOT generate the answers. Only generate the student-facing worksheet.
 
