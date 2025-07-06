@@ -27,6 +27,7 @@ const formSchema = z.object({
   photo: z.any().refine(file => file?.length == 1, "Please upload a photo."),
   gradeLevel: z.string().min(1, { message: "Please select a grade level." }),
   language: z.enum(["en", "hi", "mr", "ta"], { required_error: "Please select a language." }),
+  curriculum: z.string({ required_error: "Please select a curriculum." }),
 });
 
 // Helper to shuffle array for the matching game
@@ -52,9 +53,9 @@ const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
 
 const languageConfig = {
     en: { name: 'English', fontName: 'Helvetica', buttonText: 'Download Worksheet', fontUrl: null },
-    hi: { name: 'Hindi', fontName: 'NotoSansDevanagari', buttonText: 'हिंदी वर्कशीट डाउनलोड करें', fontUrl: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosansdevanagari/NotoSansDevanagari-Regular.ttf' },
-    mr: { name: 'Marathi', fontName: 'NotoSansDevanagari', buttonText: 'मराठी वर्कशीट डाउनलोड करा', fontUrl: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosansdevanagari/NotoSansDevanagari-Regular.ttf' },
-    ta: { name: 'Tamil', fontName: 'NotoSansTamil', buttonText: 'தமிழ் பணித்தாள் பதிவிறக்கம்', fontUrl: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosanstamil/NotoSansTamil-Regular.ttf' },
+    hi: { name: 'Hindi', fontName: 'NotoSansDevanagari', buttonText: 'हिंदी वर्कशीट डाउनलोड करें', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-all-400-normal.ttf' },
+    mr: { name: 'Marathi', fontName: 'NotoSansDevanagari', buttonText: 'मराठी वर्कशीट डाउनलोड करा', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-all-400-normal.ttf' },
+    ta: { name: 'Tamil', fontName: 'NotoSansTamil', buttonText: 'தமிழ் பணித்தாள் பதிவிறக்கம்', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-tamil/files/noto-sans-tamil-all-400-normal.ttf' },
 } as const;
 
 
@@ -70,6 +71,7 @@ export default function ScannerPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       language: "en",
+      curriculum: "NCERT",
     }
   });
 
@@ -125,6 +127,11 @@ export default function ScannerPage() {
         const margin = 15;
         let y = 20;
 
+        const setStyle = (style: 'normal' | 'bold') => {
+          if (!isCustomFont) doc.setFont(config.fontName, style);
+          else doc.setFont(config.fontName, 'normal');
+        }
+
         const checkPageBreak = (neededHeight: number) => {
             if (y + neededHeight > pageHeight - margin) {
                 doc.addPage();
@@ -135,11 +142,12 @@ export default function ScannerPage() {
         };
         
         doc.setFontSize(20);
-        if (!isCustomFont) doc.setFont(config.fontName, 'bold');
+        setStyle('bold');
         doc.text("Sahayak AI Worksheet", pageWidth / 2, y, { align: 'center' });
         y += 12;
 
-        doc.setFontSize(11).setFont(config.fontName, 'normal');
+        doc.setFontSize(11);
+        setStyle('normal');
         doc.text(`Name: _________________________`, margin, y);
         doc.text(`Date: ____________________`, pageWidth - margin, y, { align: 'right' });
         y += 7;
@@ -150,20 +158,39 @@ export default function ScannerPage() {
         doc.line(margin, y, pageWidth - margin, y);
         y += 10;
         
+        // Add curriculum info
+        doc.setFontSize(12);
+        setStyle('bold');
+        doc.text("Sub-Topic:", margin, y);
+        doc.setFontSize(11);
+        setStyle('normal');
+        doc.text(results.subTopic, margin + 25, y);
+        y += 7;
+
+        doc.setFontSize(12);
+        setStyle('bold');
+        doc.text("Learning Objectives:", margin, y);
+        doc.setFontSize(11);
+        setStyle('normal');
+        const objectivesLines = doc.splitTextToSize(results.learningObjectives, pageWidth - (margin * 2) - 38);
+        doc.text(objectivesLines, margin + 38, y);
+        y += (objectivesLines.length * 5) + 5;
+
+        doc.setLineWidth(0.5);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 10;
+
         let questionCounter = 1;
         const addSection = (title: string, questions: string[]) => {
           if (!questions || questions.length === 0) return;
 
           checkPageBreak(12);
           doc.setFontSize(14);
-          if (!isCustomFont) {
-            doc.setFont(config.fontName, 'normal'); // Use normal weight for custom fonts
-          } else {
-            doc.setFont(config.fontName, 'bold');
-          }
+          setStyle('bold');
           doc.text(title, margin, y);
           y += 8;
-          doc.setFontSize(11).setFont(config.fontName, 'normal');
+          doc.setFontSize(11);
+          setStyle('normal');
 
           questions.forEach((q) => {
             const questionText = `${questionCounter}. ${q}`;
@@ -186,14 +213,11 @@ export default function ScannerPage() {
         if (results.matchTheColumnQuestions && results.matchTheColumnQuestions.length > 0) {
             checkPageBreak(20);
             doc.setFontSize(14);
-            if (!isCustomFont) {
-                doc.setFont(config.fontName, 'normal');
-            } else {
-                doc.setFont(config.fontName, 'bold');
-            }
+            setStyle('bold');
             doc.text("D. Match the Columns", margin, y);
             y += 8;
-            doc.setFontSize(11).setFont(config.fontName, 'normal');
+            doc.setFontSize(11);
+            setStyle('normal');
             doc.text("Match the term in Column A with its definition in Column B.", margin, y);
             y += 8;
 
@@ -209,15 +233,12 @@ export default function ScannerPage() {
             
             const drawHeader = () => {
                 doc.setFontSize(12);
-                if (!isCustomFont) {
-                    doc.setFont(config.fontName, 'normal');
-                } else {
-                    doc.setFont(config.fontName, 'bold');
-                }
+                setStyle('bold');
                 doc.text("Column A", colAstartX, y);
                 doc.text("Column B", colBstartX, y);
                 y += rowLineHeight + rowPadding;
-                doc.setFontSize(11).setFont(config.fontName, 'normal');
+                doc.setFontSize(11);
+                setStyle('normal');
             };
 
             drawHeader();
@@ -265,6 +286,7 @@ export default function ScannerPage() {
         photoDataUri, 
         gradeLevel: values.gradeLevel,
         language: values.language,
+        curriculum: values.curriculum,
       };
       const result = await textbookScanner(input);
       setResults(result);
@@ -279,6 +301,7 @@ export default function ScannerPage() {
             resultText: JSON.stringify(result),
             grade: values.gradeLevel,
             language: values.language,
+            curriculum: values.curriculum,
             createdAt: serverTimestamp(),
         });
         toast({ title: "Questions generated and saved!" });
@@ -302,7 +325,7 @@ export default function ScannerPage() {
       <div className="flex flex-col gap-4 no-print">
         <header>
           <h1 className="text-3xl font-bold tracking-tight font-headline">Textbook Scanner</h1>
-          <p className="text-muted-foreground">Upload a photo of a textbook page to generate a downloadable PDF worksheet.</p>
+          <p className="text-muted-foreground">Upload a photo of a textbook page to generate a curriculum-aligned, downloadable PDF worksheet.</p>
         </header>
         <Card>
           <CardHeader>
@@ -339,6 +362,27 @@ export default function ScannerPage() {
                           </label>
                         </div>
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="curriculum"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Curriculum Board</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a board" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="NCERT">NCERT</SelectItem>
+                          <SelectItem value="State Board">State Board (Generic)</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -415,6 +459,24 @@ export default function ScannerPage() {
                         {languageConfig[form.getValues('language')].buttonText}
                     </Button>
                 </div>
+
+                <Card className="mb-4">
+                  <CardHeader>
+                      <CardTitle>Curriculum Alignment</CardTitle>
+                      <CardDescription>Based on the {form.getValues('curriculum')} curriculum for Grade {form.getValues('gradeLevel')}.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                      <div>
+                          <h4 className="font-semibold">Sub-Topic:</h4>
+                          <p className="text-muted-foreground">{results.subTopic}</p>
+                      </div>
+                      <div>
+                          <h4 className="font-semibold">Learning Objectives:</h4>
+                          <p className="text-muted-foreground whitespace-pre-wrap">{results.learningObjectives}</p>
+                      </div>
+                  </CardContent>
+                </Card>
+
                 <Card>
                 <CardContent className="p-0">
                     <Accordion type="single" collapsible className="w-full" defaultValue="mcq">

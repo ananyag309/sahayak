@@ -2,7 +2,7 @@
 'use server';
 
 /**
- * @fileOverview Textbook Scanner flow that extracts text from images and generates questions.
+ * @fileOverview Textbook Scanner flow that extracts text from images and generates curriculum-aligned questions.
  *
  * - textbookScanner - A function that handles the textbook scanning and question generation process.
  * - TextbookScannerInput - The input type for the textbookScanner function.
@@ -20,6 +20,7 @@ const TextbookScannerInputSchema = z.object({
     ),
   gradeLevel: z.string().describe('The grade level of the textbook content.'),
   language: z.enum(['en', 'hi', 'mr', 'ta']).describe('The language of the textbook content.'),
+  curriculum: z.string().describe('The educational board, e.g., "NCERT".'),
 });
 export type TextbookScannerInput = z.infer<typeof TextbookScannerInputSchema>;
 
@@ -29,6 +30,8 @@ const MatchPairSchema = z.object({
 });
 
 const TextbookScannerOutputSchema = z.object({
+  learningObjectives: z.string().describe('The key learning objectives covered in this worksheet, aligned with the curriculum.'),
+  subTopic: z.string().describe('The specific sub-topic from the curriculum that the worksheet addresses.'),
   mcqQuestions: z.array(z.string()).describe('A list of multiple choice questions based on the text.'),
   fillInTheBlankQuestions: z
     .array(z.string())
@@ -46,17 +49,22 @@ const prompt = ai.definePrompt({
   name: 'textbookScannerPrompt',
   input: {schema: TextbookScannerInputSchema},
   output: {schema: TextbookScannerOutputSchema},
-  prompt: `You are a teacher's assistant that helps generate questions from textbook images. The questions you generate MUST be in the requested language.
+  prompt: `You are a teacher's assistant that helps generate questions from textbook images, strictly aligned with a specified curriculum. The questions you generate MUST be in the requested language.
 
-  Analyze the content from the image provided. Based on the text, generate a comprehensive worksheet suitable for the specified grade level. Create at least 2-3 questions for each category if the text allows.
+  Analyze the content from the image provided. Based on the text, generate a comprehensive worksheet suitable for the specified grade level and curriculum.
 
+  First, identify the specific sub-topic and the key learning objectives this content covers according to the curriculum.
+
+  Then, create at least 2-3 questions for each category if the text allows.
+  
   1.  **Multiple Choice Questions:** Create several multiple-choice questions.
   2.  **Fill in the Blank:** Create several fill-in-the-blank sentences. Use underscores like \`___\` to indicate the blank.
   3.  **Short Answer Questions:** Create a few questions that require a brief written response (1-2 sentences).
   4.  **Match the Column:** Create several pairs of terms and their corresponding definitions. Format this as an array of objects, with each object having a 'term' key and a 'definition' key.
 
-  The questions must be based *only* on the text visible in the image.
+  The questions must be based *only* on the text visible in the image and must align with the learning standards of the provided curriculum.
 
+  Curriculum: {{{curriculum}}}
   Grade Level: {{{gradeLevel}}}
   Language: {{{language}}}
   Image:
