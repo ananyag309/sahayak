@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -154,7 +155,7 @@ export default function PlannerPage() {
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a grade level" />
-                          </Trigger>
+                          </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {[...Array(12)].map((_, i) => (
