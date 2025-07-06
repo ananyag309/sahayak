@@ -6,9 +6,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import jsPDF from "jspdf";
-import { generateHomework, type GenerateHomeworkOutput } from "@/ai/flows/homework-generator";
+import { 
+    generateHomeworkSheet, 
+    generateAnswerKey,
+    type GenerateHomeworkSheetOutput,
+    type GenerateAnswerKeyOutput 
+} from "@/ai/flows/homework-generator";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,6 +26,9 @@ const formSchema = z.object({
   grade: z.string().min(1, { message: "Please select a grade." }),
   language: z.enum(["en", "hi", "mr", "ta"], { required_error: "Please select a language." }),
 });
+
+type Worksheet = GenerateHomeworkSheetOutput;
+type AnswerKey = GenerateAnswerKeyOutput['answerKey'];
 
 const languageConfig = {
     en: { name: 'English', fontName: 'Helvetica', buttonText: 'Download PDF', fontUrl: null },
@@ -36,39 +44,65 @@ const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
         binary += String.fromCharCode(bytes[i]);
     }
     return window.btoa(binary);
-}
+};
 
 export default function HomeworkPage() {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+  const [isLoadingAnswers, setIsLoadingAnswers] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [results, setResults] = useState<GenerateHomeworkOutput | null>(null);
+  const [worksheet, setWorksheet] = useState<Worksheet | null>(null);
+  const [answerKey, setAnswerKey] = useState<AnswerKey | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: { language: "en" },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true);
-    setResults(null);
+  async function handleGenerateSheet(values: z.infer<typeof formSchema>) {
+    setIsLoadingQuestions(true);
+    setWorksheet(null);
+    setAnswerKey(null);
     try {
-      const result = await generateHomework(values);
-      setResults(result);
-      toast({ title: "Homework sheet generated successfully!" });
+      const result = await generateHomeworkSheet(values);
+      setWorksheet(result);
+      toast({ title: "Worksheet generated successfully!" });
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Generation Failed",
-        description: error.message || "The AI was unable to generate a homework sheet. Please try again.",
+        title: "Worksheet Generation Failed",
+        description: error.message || "The AI was unable to generate a worksheet. Please try again.",
       });
     } finally {
-      setIsLoading(false);
+      setIsLoadingQuestions(false);
     }
   }
 
+  const handleGenerateAnswerKey = async () => {
+    if (!worksheet) return;
+    setIsLoadingAnswers(true);
+    setAnswerKey(null);
+
+    try {
+        const result = await generateAnswerKey({
+            questions: worksheet.questions,
+            language: form.getValues('language'),
+        });
+        setAnswerKey(result.answerKey);
+        toast({ title: "Answer key generated successfully!" });
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Answer Key Generation Failed",
+            description: error.message || "Could not generate the answer key. Please try again.",
+        });
+    } finally {
+        setIsLoadingAnswers(false);
+    }
+  };
+
   const handleDownloadPdf = async () => {
-    if (!results) return;
+    if (!worksheet || !answerKey) return;
     setIsDownloading(true);
 
     try {
@@ -113,7 +147,7 @@ export default function HomeworkPage() {
         // --- Worksheet Page ---
         doc.setFontSize(20);
         setStyle('bold');
-        doc.text(results.title, pageWidth / 2, y, { align: 'center' });
+        doc.text(worksheet.title, pageWidth / 2, y, { align: 'center' });
         y += 12;
 
         setStyle('normal');
@@ -131,11 +165,11 @@ export default function HomeworkPage() {
 
         setStyle('normal');
         doc.setFontSize(11);
-        const instructionLines = doc.splitTextToSize(results.instructions, pageWidth - margin * 2);
+        const instructionLines = doc.splitTextToSize(worksheet.instructions, pageWidth - margin * 2);
         doc.text(instructionLines, margin, y);
         y += (instructionLines.length * 5) + 8;
         
-        results.questions.forEach((q) => {
+        worksheet.questions.forEach((q) => {
             const questionText = `${q.questionNumber}. ${q.questionText}`;
             const splitText = doc.splitTextToSize(questionText, pageWidth - (margin * 2));
             const neededHeight = (splitText.length * 5) + 12;
@@ -155,7 +189,7 @@ export default function HomeworkPage() {
         doc.text("Answer Key", pageWidth / 2, y, { align: 'center' });
         y += 15;
 
-        results.answerKey.forEach((a) => {
+        answerKey.forEach((a) => {
             const questionText = `${a.questionNumber}. (Question from previous page)`;
             const answerText = `Answer: ${a.answerText}`;
             
@@ -176,7 +210,7 @@ export default function HomeworkPage() {
             y += (splitAnswer.length * 5) + 8;
         });
         
-        doc.save(`homework-${results.title.replace(/\s/g, '_')}.pdf`);
+        doc.save(`homework-${worksheet.title.replace(/\s/g, '_')}.pdf`);
         toast({ title: "PDF Download Started!" });
     } catch (err: any) {
         toast({
@@ -187,14 +221,14 @@ export default function HomeworkPage() {
     } finally {
         setIsDownloading(false);
     }
-  }
+  };
 
   return (
     <div className="grid lg:grid-cols-2 gap-8">
       <div>
         <header className="mb-4">
           <h1 className="text-3xl font-bold tracking-tight font-headline">Homework Sheet Generator</h1>
-          <p className="text-muted-foreground">Generate a mixed-question homework sheet with a full answer key.</p>
+          <p className="text-muted-foreground">Generate questions and a separate answer key for any topic.</p>
         </header>
         <Card>
           <CardHeader>
@@ -202,18 +236,18 @@ export default function HomeworkPage() {
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(handleGenerateSheet)} className="space-y-4">
                 <FormField control={form.control} name="topic" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Topic</FormLabel>
-                    <FormControl><Input placeholder="e.g., The Mughal Empire" {...field} disabled={isLoading} /></FormControl>
+                    <FormControl><Input placeholder="e.g., The Mughal Empire" {...field} disabled={isLoadingQuestions || isLoadingAnswers} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="grade" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Grade</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingQuestions || isLoadingAnswers}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Select a grade" /></SelectTrigger></FormControl>
                       <SelectContent>{[...Array(12)].map((_, i) => (<SelectItem key={i + 1} value={`${i + 1}`}>Grade {i + 1}</SelectItem>))}</SelectContent>
                     </Select>
@@ -223,7 +257,7 @@ export default function HomeworkPage() {
                 <FormField control={form.control} name="language" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Language</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingQuestions || isLoadingAnswers}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Select a language" /></SelectTrigger></FormControl>
                       <SelectContent>
                         {Object.entries(languageConfig).map(([key, value]) => (
@@ -234,8 +268,8 @@ export default function HomeworkPage() {
                     <FormMessage />
                   </FormItem>
                 )} />
-                <Button type="submit" className="w-full" disabled={isLoading || isDownloading}>
-                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Generate Homework"}
+                <Button type="submit" className="w-full" disabled={isLoadingQuestions || isLoadingAnswers || isDownloading}>
+                  {isLoadingQuestions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Generate Worksheet"}
                 </Button>
               </form>
             </Form>
@@ -245,49 +279,62 @@ export default function HomeworkPage() {
       <div>
         <header className="mb-4">
           <h2 className="text-2xl font-bold tracking-tight font-headline">Generated Sheet</h2>
-          <p className="text-muted-foreground">Your homework sheet and answer key will appear below.</p>
+          <p className="text-muted-foreground">Your worksheet and answer key will appear below.</p>
         </header>
         <Card className="min-h-[500px]">
-          {isLoading && (
+          {(isLoadingQuestions) && (
             <div className="flex flex-col items-center justify-center h-full">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="mt-4 text-muted-foreground">AI is preparing your homework...</p>
+              <p className="mt-4 text-muted-foreground">AI is preparing your worksheet...</p>
             </div>
           )}
-          {results && !isLoading && (
+          {worksheet && !isLoadingQuestions && (
              <CardContent className="p-6 space-y-6">
                 <div className="flex justify-between items-center">
-                    <CardTitle>{results.title}</CardTitle>
-                    <Button onClick={handleDownloadPdf} disabled={isDownloading}>
+                    <CardTitle>{worksheet.title}</CardTitle>
+                    <Button onClick={handleDownloadPdf} disabled={!answerKey || isDownloading || isLoadingQuestions || isLoadingAnswers}>
                         {isDownloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                         {languageConfig[form.getValues('language')].buttonText}
                     </Button>
                 </div>
-                <CardDescription>{results.instructions}</CardDescription>
                 
-                <Separator />
-
                 <div>
-                    <h3 className="font-semibold mb-4 flex items-center gap-2"><BookCopy className="h-5 w-5 text-primary"/> Questions</h3>
+                    <h3 className="font-semibold mb-2 flex items-center gap-2"><BookCopy className="h-5 w-5 text-primary"/> Questions</h3>
+                    <p className="text-sm text-muted-foreground mb-4">{worksheet.instructions}</p>
                     <ul className="space-y-4 list-decimal list-inside">
-                        {results.questions.map((q) => <li key={q.questionNumber}>{q.questionText}</li>)}
+                        {worksheet.questions.map((q) => <li key={q.questionNumber}>{q.questionText}</li>)}
                     </ul>
                 </div>
 
                 <Separator />
 
                 <div>
-                    <h3 className="font-semibold mb-4 flex items-center gap-2"><KeyRound className="h-5 w-5 text-primary"/> Answer Key</h3>
-                     <ul className="space-y-4 list-decimal list-inside">
-                        {results.answerKey.map((a) => <li key={a.questionNumber}>{a.answerText}</li>)}
-                    </ul>
+                    {!answerKey && !isLoadingAnswers && (
+                        <Button variant="secondary" className="w-full" onClick={handleGenerateAnswerKey} disabled={isLoadingQuestions}>
+                            <KeyRound className="mr-2 h-4 w-4" /> Generate Answer Key
+                        </Button>
+                    )}
+                    {isLoadingAnswers && (
+                        <div className="flex flex-col items-center justify-center h-full">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            <p className="mt-4 text-muted-foreground">Generating answer key...</p>
+                        </div>
+                    )}
+                    {answerKey && !isLoadingAnswers && (
+                        <>
+                            <h3 className="font-semibold mb-4 flex items-center gap-2"><KeyRound className="h-5 w-5 text-primary"/> Answer Key</h3>
+                            <ul className="space-y-4 list-decimal list-inside">
+                                {answerKey.map((a) => <li key={a.questionNumber}>{a.answerText}</li>)}
+                            </ul>
+                        </>
+                    )}
                 </div>
 
              </CardContent>
           )}
-          {!results && !isLoading && (
+          {!worksheet && !isLoadingQuestions && (
              <div className="flex items-center justify-center h-full p-8">
-                <p className="text-muted-foreground text-center">Fill out the form to generate a homework sheet.</p>
+                <p className="text-muted-foreground text-center">Fill out the form to generate a homework worksheet.</p>
              </div>
           )}
         </Card>
