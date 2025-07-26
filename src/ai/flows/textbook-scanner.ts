@@ -1,8 +1,9 @@
+
 // src/ai/flows/textbook-scanner.ts
 'use server';
 
 /**
- * @fileOverview Textbook Scanner flow that extracts text from images and generates curriculum-aligned questions.
+ * @fileOverview Textbook Scanner flow that extracts text from images, auto-identifies the grade level, and generates curriculum-aligned questions.
  *
  * - textbookScanner - A function that handles the textbook scanning and question generation process.
  * - TextbookScannerInput - The input type for the textbookScanner function.
@@ -18,7 +19,6 @@ const TextbookScannerInputSchema = z.object({
     .describe(
       "A photo of a textbook, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
-  gradeLevel: z.string().describe('The grade level of the textbook content.'),
   language: z.enum(['en', 'hi', 'mr', 'ta']).describe('The language of the textbook content.'),
   curriculum: z.string().describe('The educational board, e.g., "NCERT".'),
 });
@@ -30,6 +30,7 @@ const MatchPairSchema = z.object({
 });
 
 const TextbookScannerOutputSchema = z.object({
+  identifiedGradeLevel: z.string().describe('The grade level identified by the AI from the textbook content.'),
   learningObjectives: z.string().describe('The key learning objectives covered in this worksheet, aligned with the curriculum.'),
   subTopic: z.string().describe('The specific sub-topic from the curriculum that the worksheet addresses.'),
   mcqQuestions: z.array(z.string()).describe('A list of multiple choice questions based on the text.'),
@@ -51,7 +52,9 @@ const prompt = ai.definePrompt({
   output: {schema: TextbookScannerOutputSchema},
   prompt: `You are a teacher's assistant that helps generate questions from textbook images, strictly aligned with a specified curriculum. The questions you generate MUST be in the requested language.
 
-  Analyze the content from the image provided. Based on the text, generate a comprehensive worksheet suitable for the specified grade level and curriculum.
+  Analyze the content from the image provided. Your first task is to determine the most appropriate grade level for this content.
+
+  Based on the grade level you identify, generate a comprehensive worksheet suitable for that grade and the specified curriculum.
 
   First, identify the specific sub-topic and the key learning objectives this content covers according to the curriculum.
 
@@ -65,7 +68,6 @@ const prompt = ai.definePrompt({
   The questions must be based *only* on the text visible in the image and must align with the learning standards of the provided curriculum.
 
   Curriculum: {{{curriculum}}}
-  Grade Level: {{{gradeLevel}}}
   Language: {{{language}}}
   Image:
   {{media url=photoDataUri}}

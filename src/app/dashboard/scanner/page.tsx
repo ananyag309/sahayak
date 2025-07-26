@@ -25,7 +25,6 @@ import jsPDF from 'jspdf';
 
 const formSchema = z.object({
   photo: z.any().refine(file => file?.length == 1, "Please upload a photo."),
-  gradeLevel: z.string().min(1, { message: "Please select a grade level." }),
   language: z.enum(["en", "hi", "mr", "ta"], { required_error: "Please select a language." }),
   curriculum: z.string({ required_error: "Please select a curriculum." }),
 });
@@ -151,7 +150,7 @@ export default function ScannerPage() {
         doc.text(`Name: _________________________`, margin, y);
         doc.text(`Date: ____________________`, pageWidth - margin, y, { align: 'right' });
         y += 7;
-        doc.text(`Grade: ${form.getValues('gradeLevel') || '______'}`, margin, y);
+        doc.text(`Grade: ${results.identifiedGradeLevel || '______'}`, margin, y);
         y += 7;
 
         doc.setLineWidth(0.5);
@@ -262,7 +261,7 @@ export default function ScannerPage() {
             }
         }
         
-        doc.save(`sahayak-worksheet-grade-${form.getValues('gradeLevel')}-${selectedLang}.pdf`);
+        doc.save(`sahayak-worksheet-grade-${results.identifiedGradeLevel.replace(/\s/g, '_')}-${selectedLang}.pdf`);
         toast({ title: "PDF Download Started!" });
     } catch(err: any) {
         console.error("PDF Generation Error:", err);
@@ -284,7 +283,6 @@ export default function ScannerPage() {
       const photoDataUri = await toDataUri(file);
       const input: TextbookScannerInput = { 
         photoDataUri, 
-        gradeLevel: values.gradeLevel,
         language: values.language,
         curriculum: values.curriculum,
       };
@@ -299,7 +297,7 @@ export default function ScannerPage() {
             userId: user.uid,
             imageURL: imageUrl,
             resultText: JSON.stringify(result),
-            grade: values.gradeLevel,
+            grade: result.identifiedGradeLevel,
             language: values.language,
             curriculum: values.curriculum,
             createdAt: serverTimestamp(),
@@ -409,28 +407,6 @@ export default function ScannerPage() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="gradeLevel"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Grade Level</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a grade level" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {[...Array(12)].map((_, i) => (
-                            <SelectItem key={i + 1} value={`${i + 1}`}>{`Grade ${i + 1}`}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
                 <Button type="submit" className="w-full" disabled={isLoading || isDownloading}>
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Generate Questions"}
                 </Button>
@@ -463,9 +439,13 @@ export default function ScannerPage() {
                 <Card className="mb-4">
                   <CardHeader>
                       <CardTitle>Curriculum Alignment</CardTitle>
-                      <CardDescription>Based on the {form.getValues('curriculum')} curriculum for Grade {form.getValues('gradeLevel')}.</CardDescription>
+                      <CardDescription>Based on the {form.getValues('curriculum')} curriculum for the auto-detected grade.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-2">
+                      <div>
+                          <h4 className="font-semibold">Identified Grade Level:</h4>
+                          <p className="text-muted-foreground">{results.identifiedGradeLevel}</p>
+                      </div>
                       <div>
                           <h4 className="font-semibold">Sub-Topic:</h4>
                           <p className="text-muted-foreground">{results.subTopic}</p>
