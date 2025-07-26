@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { textbookScanner, type TextbookScannerInput, type TextbookScannerOutput } from "@/ai/flows/textbook-scanner";
+import { textbookScanner, type TextbookScannerOutput } from "@/ai/flows/textbook-scanner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -39,47 +39,6 @@ const shuffleArray = <T,>(array: T[]): T[] => {
     }
     return newArray;
 };
-
-const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
-    let binary = '';
-    const bytes = new Uint8Array(buffer);
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return window.btoa(binary);
-}
-
-const languageConfig = {
-    en: { name: 'English', fontName: 'Helvetica', buttonText: 'Download Worksheet', fontUrl: null },
-    hi: { name: 'Hindi', fontName: 'NotoSansDevanagari', buttonText: 'हिंदी वर्कशीट डाउनलोड करें', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-all-400-normal.ttf' },
-    mr: { name: 'Marathi', fontName: 'NotoSansDevanagari', buttonText: 'मराठी वर्कशीट डाउनलोड करा', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-all-400-normal.ttf' },
-    ta: { name: 'Tamil', fontName: 'NotoSansTamil', buttonText: 'தமிழ் பணித்தாள் பதிவிறக்கம்', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-tamil/files/noto-sans-tamil-all-400-normal.ttf' },
-    bn: { name: 'Bengali', fontName: 'NotoSansBengali', buttonText: 'পিডিএফ ডাউনলোড করুন', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-bengali/files/noto-sans-bengali-all-400-normal.ttf' },
-    te: { name: 'Telugu', fontName: 'NotoSansTelugu', buttonText: 'PDF డౌన్లోడ్ చేయండి', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-telugu/files/noto-sans-telugu-all-400-normal.ttf' },
-    kn: { name: 'Kannada', fontName: 'NotoSansKannada', buttonText: 'ಪಿಡಿಎಫ್ ಡೌನ್ಲೋಡ್ ಮಾಡಿ', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-kannada/files/noto-sans-kannada-all-400-normal.ttf' },
-    gu: { name: 'Gujarati', fontName: 'NotoSansGujarati', buttonText: 'પીડીએફ ડાઉનલોડ કરો', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-gujarati/files/noto-sans-gujarati-all-400-normal.ttf' },
-    pa: { name: 'Punjabi', fontName: 'NotoSansGurmukhi', buttonText: 'ਪੀਡੀਐਫ ਡਾਊਨਲੋਡ ਕਰੋ', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-gurmukhi/files/noto-sans-gurmukhi-all-400-normal.ttf' },
-    es: { name: 'Spanish', fontName: 'Helvetica', buttonText: 'Descargar PDF', fontUrl: null },
-    fr: { name: 'French', fontName: 'Helvetica', buttonText: 'Télécharger le PDF', fontUrl: null },
-    de: { name: 'German', fontName: 'Helvetica', buttonText: 'PDF Herunterladen', fontUrl: null },
-} as const;
-
-type LanguageKey = keyof typeof languageConfig;
-
-const detectLanguage = (text: string): LanguageKey => {
-    if (!text) return 'en';
-    // Basic detection based on character ranges. A more robust library could be used for higher accuracy.
-    if (/[\u0900-\u097F]/.test(text)) return 'hi'; // Devanagari (Hindi, Marathi)
-    if (/[\u0B80-\u0BFF]/.test(text)) return 'ta'; // Tamil
-    if (/[\u0980-\u09FF]/.test(text)) return 'bn'; // Bengali
-    if (/[\u0C00-\u0C7F]/.test(text)) return 'te'; // Telugu
-    if (/[\u0C80-\u0CFF]/.test(text)) return 'kn'; // Kannada
-    if (/[\u0A80-\u0AFF]/.test(text)) return 'gu'; // Gujarati
-    if (/[\u0A00-\u0A7F]/.test(text)) return 'pa'; // Gurmukhi (Punjabi)
-    // Add other language detections here
-    return 'en'; // Default to English
-}
 
 
 export default function ScannerPage() {
@@ -126,36 +85,11 @@ export default function ScannerPage() {
 
     try {
         const doc = new jsPDF();
-        const contentSample = results.learningObjectives || results.mcqQuestions?.[0] || '';
-        const langKey = detectLanguage(contentSample);
-        const config = languageConfig[langKey];
-        const isCustomFont = !!config.fontUrl;
-
-        if (isCustomFont) {
-            toast({ title: "Preparing download...", description: `Fetching font for ${config.name}.` });
-            try {
-                const fontRes = await fetch(config.fontUrl!);
-                if (!fontRes.ok) throw new Error(`Could not load font for ${config.name}.`);
-                const fontArrayBuffer = await fontRes.arrayBuffer();
-                const fontBase64 = arrayBufferToBase64(fontArrayBuffer);
-                doc.addFileToVFS(`${config.fontName}.ttf`, fontBase64);
-                doc.addFont(`${config.fontName}.ttf`, config.fontName, 'normal');
-            } catch (fontError: any) {
-                throw new Error(`Could not load font for ${config.name}. ${fontError.message}`);
-            }
-        }
-        
-        doc.setFont(config.fontName);
         
         const pageHeight = doc.internal.pageSize.height;
         const pageWidth = doc.internal.pageSize.width;
         const margin = 15;
         let y = 20;
-
-        const setStyle = (style: 'normal' | 'bold') => {
-          if (!isCustomFont) doc.setFont(config.fontName, style);
-          else doc.setFont(config.fontName, 'normal'); // Custom fonts might not support weights
-        }
 
         const checkPageBreak = (neededHeight: number) => {
             if (y + neededHeight > pageHeight - margin) {
@@ -167,12 +101,10 @@ export default function ScannerPage() {
         };
         
         doc.setFontSize(20);
-        setStyle('bold');
         doc.text("Sahayak AI Worksheet", pageWidth / 2, y, { align: 'center' });
         y += 12;
 
         doc.setFontSize(11);
-        setStyle('normal');
         doc.text(`Name: _________________________`, margin, y);
         doc.text(`Date: ____________________`, pageWidth - margin, y, { align: 'right' });
         y += 7;
@@ -184,18 +116,14 @@ export default function ScannerPage() {
         y += 10;
         
         doc.setFontSize(12);
-        setStyle('bold');
         doc.text("Sub-Topic:", margin, y);
         doc.setFontSize(11);
-        setStyle('normal');
         doc.text(results.subTopic, margin + 25, y);
         y += 7;
 
         doc.setFontSize(12);
-        setStyle('bold');
         doc.text("Learning Objectives:", margin, y);
         doc.setFontSize(11);
-        setStyle('normal');
         const objectivesLines = doc.splitTextToSize(results.learningObjectives, pageWidth - (margin * 2) - 38);
         doc.text(objectivesLines, margin + 38, y);
         y += (objectivesLines.length * 5) + 5;
@@ -210,11 +138,9 @@ export default function ScannerPage() {
 
           checkPageBreak(12);
           doc.setFontSize(14);
-          setStyle('bold');
           doc.text(title, margin, y);
           y += 8;
           doc.setFontSize(11);
-          setStyle('normal');
 
           questions.forEach((q) => {
             const questionText = `${questionCounter}. ${q}`;
@@ -237,11 +163,9 @@ export default function ScannerPage() {
         if (results.matchTheColumnQuestions && results.matchTheColumnQuestions.length > 0) {
             checkPageBreak(20);
             doc.setFontSize(14);
-            setStyle('bold');
             doc.text("D. Match the Columns", margin, y);
             y += 8;
             doc.setFontSize(11);
-            setStyle('normal');
             doc.text("Match the term in Column A with its definition in Column B.", margin, y);
             y += 8;
 
@@ -257,12 +181,10 @@ export default function ScannerPage() {
             
             const drawHeader = () => {
                 doc.setFontSize(12);
-                setStyle('bold');
                 doc.text("Column A", colAstartX, y);
                 doc.text("Column B", colBstartX, y);
                 y += rowLineHeight + rowPadding;
                 doc.setFontSize(11);
-                setStyle('normal');
             };
 
             drawHeader();
@@ -293,7 +215,7 @@ export default function ScannerPage() {
         toast({
             variant: "destructive",
             title: "PDF Generation Failed",
-            description: err.message || "Could not generate PDF. The required font may be unavailable."
+            description: err.message || "Could not generate PDF."
         });
     } finally {
         setIsDownloading(false);
@@ -532,3 +454,5 @@ export default function ScannerPage() {
     </div>
   );
 }
+
+    

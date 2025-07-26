@@ -30,28 +30,19 @@ const formSchema = z.object({
 type Worksheet = GenerateHomeworkSheetOutput;
 type AnswerKey = GenerateAnswerKeyOutput['answerKey'];
 
-const languageConfig = {
-    en: { name: 'English', fontName: 'Helvetica', buttonText: 'Download PDF', fontUrl: null },
-    hi: { name: 'Hindi', fontName: 'NotoSansDevanagari', buttonText: 'पीडीएफ़ डाउनलोड करें', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-all-400-normal.ttf' },
-    mr: { name: 'Marathi', fontName: 'NotoSansDevanagari', buttonText: 'पीडीएफ डाउनलोड करा', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-all-400-normal.ttf' },
-    ta: { name: 'Tamil', fontName: 'NotoSansTamil', buttonText: 'PDF பதிவிறக்கவும்', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-tamil/files/noto-sans-tamil-all-400-normal.ttf' },
-    bn: { name: 'Bengali', fontName: 'NotoSansBengali', buttonText: 'পিডিএফ ডাউনলোড করুন', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-bengali/files/noto-sans-bengali-all-400-normal.ttf' },
-    te: { name: 'Telugu', fontName: 'NotoSansTelugu', buttonText: 'PDF డౌన్లోడ్ చేయండి', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-telugu/files/noto-sans-telugu-all-400-normal.ttf' },
-    kn: { name: 'Kannada', fontName: 'NotoSansKannada', buttonText: 'ಪಿಡಿಎಫ್ ಡೌನ್ಲೋಡ್ ಮಾಡಿ', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-kannada/files/noto-sans-kannada-all-400-normal.ttf' },
-    gu: { name: 'Gujarati', fontName: 'NotoSansGujarati', buttonText: 'પીડીએફ ડાઉનલોડ કરો', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-gujarati/files/noto-sans-gujarati-all-400-normal.ttf' },
-    pa: { name: 'Punjabi', fontName: 'NotoSansGurmukhi', buttonText: 'ਪੀਡੀਐਫ ਡਾਊਨਲੋਡ ਕਰੋ', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-gurmukhi/files/noto-sans-gurmukhi-all-400-normal.ttf' },
-    es: { name: 'Spanish', fontName: 'Helvetica', buttonText: 'Descargar PDF', fontUrl: null },
-    fr: { name: 'French', fontName: 'Helvetica', buttonText: 'Télécharger le PDF', fontUrl: null },
-    de: { name: 'German', fontName: 'Helvetica', buttonText: 'PDF Herunterladen', fontUrl: null },
-} as const;
-
-const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
-    let binary = '';
-    const bytes = new Uint8Array(buffer);
-    for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return window.btoa(binary);
+const languageButtonText: Record<z.infer<typeof formSchema>['language'], string> = {
+    en: 'Download PDF',
+    hi: 'पीडीएफ़ डाउनलोड करें',
+    mr: 'पीडीएफ डाउनलोड करा',
+    ta: 'PDF பதிவிறக்கவும்',
+    bn: 'পিডিএফ ডাউনলোড করুন',
+    te: 'PDF డౌన్లోడ్ చేయండి',
+    kn: 'ಪಿಡಿಎಫ್ ಡೌನ್ಲೋಡ್ ಮಾಡಿ',
+    gu: 'પીડીએફ ડાઉનલોડ કરો',
+    pa: 'ਪੀਡੀਐਫ ਡਾਊਨਲੋਡ ਕਰੋ',
+    es: 'Descargar PDF',
+    fr: 'Télécharger le PDF',
+    de: 'PDF Herunterladen',
 };
 
 export default function HomeworkPage() {
@@ -119,25 +110,6 @@ export default function HomeworkPage() {
 
     try {
         const doc = new jsPDF();
-        const selectedLangKey = form.getValues('language');
-        const config = languageConfig[selectedLangKey];
-        const isCustomFont = !!config.fontUrl;
-
-        if (isCustomFont) {
-            toast({ title: "Preparing download...", description: "Fetching language font." });
-            try {
-                const fontRes = await fetch(config.fontUrl!);
-                if (!fontRes.ok) throw new Error(`Could not load font for ${config.name}.`);
-                const fontArrayBuffer = await fontRes.arrayBuffer();
-                const fontBase64 = arrayBufferToBase64(fontArrayBuffer);
-                doc.addFileToVFS(`${config.fontName}.ttf`, fontBase64);
-                doc.addFont(`${config.fontName}.ttf`, config.fontName, 'normal');
-            } catch (fontError: any) {
-                throw new Error(`Could not load font for ${config.name}. ${fontError.message}`);
-            }
-        }
-        
-        doc.setFont(config.fontName);
         
         const pageHeight = doc.internal.pageSize.height;
         const pageWidth = doc.internal.pageSize.width;
@@ -151,18 +123,11 @@ export default function HomeworkPage() {
             }
         };
 
-        const setStyle = (style: 'normal' | 'bold') => {
-            if (!isCustomFont) doc.setFont(config.fontName, style);
-            else doc.setFont(config.fontName, 'normal');
-        };
-
         // --- Worksheet Page ---
         doc.setFontSize(20);
-        setStyle('bold');
         doc.text(worksheet.title, pageWidth / 2, y, { align: 'center' });
         y += 12;
 
-        setStyle('normal');
         doc.setFontSize(11);
         doc.text(`Name: _________________________`, margin, y);
         doc.text(`Date: ____________________`, pageWidth - margin, y, { align: 'right' });
@@ -171,11 +136,9 @@ export default function HomeworkPage() {
         y += 10;
         
         doc.setFontSize(12);
-        setStyle('bold');
         doc.text("Instructions:", margin, y);
         y += 6;
 
-        setStyle('normal');
         doc.setFontSize(11);
         const instructionLines = doc.splitTextToSize(worksheet.instructions, pageWidth - margin * 2);
         doc.text(instructionLines, margin, y);
@@ -187,7 +150,6 @@ export default function HomeworkPage() {
             const neededHeight = (splitText.length * 5) + 12;
             checkPageBreak(neededHeight);
             
-            setStyle('normal'); // Questions should be normal weight
             doc.text(splitText, margin, y);
             y += neededHeight;
         });
@@ -197,7 +159,6 @@ export default function HomeworkPage() {
         y = 20;
 
         doc.setFontSize(20);
-        setStyle('bold');
         doc.text("Answer Key", pageWidth / 2, y, { align: 'center' });
         y += 15;
 
@@ -211,12 +172,10 @@ export default function HomeworkPage() {
             const neededHeight = (splitQuestion.length * 5) + (splitAnswer.length * 5) + 8;
             checkPageBreak(neededHeight);
             
-            setStyle('normal'); // Use normal for the question reference
             doc.setFontSize(11);
             doc.text(splitQuestion, margin, y);
             y += (splitQuestion.length * 5) + 2;
 
-            setStyle('bold'); // Use bold for the answer text
             doc.setFontSize(11);
             doc.text(splitAnswer, margin + 5, y);
             y += (splitAnswer.length * 5) + 8;
@@ -272,8 +231,8 @@ export default function HomeworkPage() {
                     <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingQuestions || isLoadingAnswers}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Select a language" /></SelectTrigger></FormControl>
                       <SelectContent>
-                        {Object.entries(languageConfig).map(([key, value]) => (
-                            <SelectItem key={key} value={key as z.infer<typeof formSchema>['language']}>{value.name}</SelectItem>
+                        {Object.entries(languageButtonText).map(([key, value]) => (
+                            <SelectItem key={key} value={key as z.infer<typeof formSchema>['language']}>{key.charAt(0).toUpperCase() + key.slice(1)}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -306,7 +265,7 @@ export default function HomeworkPage() {
                     <CardTitle>{worksheet.title}</CardTitle>
                     <Button onClick={handleDownloadPdf} disabled={!answerKey || isDownloading || isLoadingQuestions || isLoadingAnswers}>
                         {isDownloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                        {languageConfig[form.getValues('language')].buttonText}
+                        {languageButtonText[form.getValues('language')]}
                     </Button>
                 </div>
                 
@@ -354,3 +313,5 @@ export default function HomeworkPage() {
     </div>
   );
 }
+
+    
