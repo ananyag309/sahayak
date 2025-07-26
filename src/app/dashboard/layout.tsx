@@ -50,6 +50,7 @@ import {
   Plus,
   ScanLine,
   Sun,
+  Wand2,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 
@@ -64,6 +65,7 @@ const navItems = [
   { href: "/dashboard/games", icon: Gamepad2, label: "Game Generator" },
   { href: "/dashboard/flashcards", icon: Layers, label: "Flashcard Creator" },
   { href: "/dashboard/library", icon: Library, label: "My Library" },
+  { href: "/dashboard/agent", icon: Wand2, label: "Curriculum Agent" },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -134,7 +136,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <SidebarMenu>
             {navItems.map((item) => (
               <SidebarMenuItem key={item.href}>
-                <Link href={item.href} passHref>
+                <Link href={item.href}>
                   <SidebarMenuButton
                     asChild
                     isActive={pathname === item.href}

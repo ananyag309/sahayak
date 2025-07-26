@@ -9,4 +9,4 @@ import '@/ai/flows/game-generator.ts';
 import '@/ai/flows/flashcard-generator.ts';
 import '@/ai/flows/reading-assessor.ts';
 import '@/ai/flows/homework-generator.ts';
-
+import '@/ai/flows/curriculum-agent.ts';
