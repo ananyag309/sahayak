@@ -1,3 +1,4 @@
+
 // src/ai/flows/textbook-scanner.ts
 'use server';
 
@@ -48,22 +49,24 @@ const prompt = ai.definePrompt({
   name: 'textbookScannerPrompt',
   input: {schema: TextbookScannerInputSchema},
   output: {schema: TextbookScannerOutputSchema},
-  prompt: `You are a teacher's assistant that helps generate questions from textbook images, strictly aligned with a specified curriculum.
+  prompt: `You are a teacher's assistant that helps generate worksheets from textbook images, strictly aligned with a specified curriculum.
 
-  Analyze the content from the image provided. Your first task is to determine the language of the text and the most appropriate grade level for this content.
-
-  Based on the language and grade level you identify, generate a comprehensive worksheet suitable for that grade and the specified curriculum.
+  Analyze the content from the image provided.
   
-  First, identify the specific sub-topic and the key learning objectives this content covers according to the curriculum.
-
-  Then, create at least 2-3 questions for each category if the text allows. The questions you generate MUST be in the language you identified from the image.
+  1.  **First, determine the primary language of the text** in the image (e.g., Hindi, English, Tamil).
+  2.  **Second, determine the most appropriate grade level** for this content.
+  3.  **Third, generate a comprehensive worksheet.** The ENTIRE output, including learning objectives, sub-topics, and all questions, MUST be in the language you identified in the first step.
   
-  1.  **Multiple Choice Questions:** Create several multiple-choice questions.
-  2.  **Fill in the Blank:** Create several fill-in-the-blank sentences. Use underscores like \`___\` to indicate the blank.
-  3.  **Short Answer Questions:** Create a few questions that require a brief written response (1-2 sentences).
-  4.  **Match the Column:** Create several pairs of terms and their corresponding definitions. Format this as an array of objects, with each object having a 'term' key and a 'definition' key.
-
-  The questions must be based *only* on the text visible in the image and must align with the learning standards of the provided curriculum.
+  The worksheet must be based *only* on the text visible in the image and must align with the learning standards of the provided curriculum.
+  
+  **Worksheet Content Requirements (in the identified language):**
+  -   **Learning Objectives:** State the key learning objectives.
+  -   **Sub-Topic:** Identify the specific sub-topic from the curriculum.
+  -   **Question Types:** Create at least 2-3 questions for each of the following categories if the text allows:
+      -   Multiple Choice Questions
+      -   Fill in the Blank (use underscores \`___\` for the blank)
+      -   Short Answer Questions
+      -   Match the Column (provide term/definition pairs)
 
   Curriculum: {{{curriculum}}}
   Image:
