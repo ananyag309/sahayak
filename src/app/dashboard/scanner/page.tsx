@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { useForm } from "react-hook-form";
+import { useForm } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { textbookScanner, type TextbookScannerInput, type TextbookScannerOutput } from "@/ai/flows/textbook-scanner";
@@ -30,8 +30,11 @@ const formSchema = z.object({
 
 // Helper to shuffle array for the matching game
 const shuffleArray = <T,>(array: T[]): T[] => {
+    if (!Array.isArray(array)) {
+        return [];
+    }
     const newArray = [...array];
-    for (let i = newArray.length - 1; i > 0; i++) {
+    for (let i = newArray.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
     }
@@ -507,5 +510,7 @@ export default function ScannerPage() {
     </div>
   );
 }
+
+    
 
     
