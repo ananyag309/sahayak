@@ -8,7 +8,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 
 // Define a "tool" that the agent can use to get information.
 // This tool simulates fetching curriculum standards for a given grade.
