@@ -56,7 +56,11 @@ export default function HomeworkPage() {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { language: "en" },
+    defaultValues: { 
+        language: "en",
+        topic: "",
+        grade: "",
+    },
   });
 
   async function handleGenerateSheet(values: z.infer<typeof formSchema>) {
@@ -115,7 +119,7 @@ export default function HomeworkPage() {
             toast({ title: "Preparing download...", description: "Fetching language font." });
             try {
                 const fontRes = await fetch(config.fontUrl!);
-                if (!fontRes.ok) throw new Error(`Font download failed: ${fontRes.statusText}`);
+                if (!fontRes.ok) throw new Error(`Could not load font for ${config.name}.`);
                 const fontArrayBuffer = await fontRes.arrayBuffer();
                 const fontBase64 = arrayBufferToBase64(fontArrayBuffer);
                 doc.addFileToVFS(`${config.fontName}.ttf`, fontBase64);
@@ -247,7 +251,7 @@ export default function HomeworkPage() {
                 <FormField control={form.control} name="grade" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Grade</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingQuestions || isLoadingAnswers}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingQuestions || isLoadingAnswers} value={field.value}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Select a grade" /></SelectTrigger></FormControl>
                       <SelectContent>{[...Array(12)].map((_, i) => (<SelectItem key={i + 1} value={`${i + 1}`}>Grade {i + 1}</SelectItem>))}</SelectContent>
                     </Select>
@@ -342,3 +346,5 @@ export default function HomeworkPage() {
     </div>
   );
 }
+
+    
