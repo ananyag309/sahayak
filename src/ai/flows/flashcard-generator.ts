@@ -3,13 +3,17 @@
  * @fileOverview A flashcard generator AI agent.
  *
  * - generateFlashcards - A function that handles the flashcard generation process.
+ * - generateFlashcardImage - A function that handles generating an image for a single flashcard.
  * - GenerateFlashcardsInput - The input type for the generateFlashcards function.
  * - GenerateFlashcardsOutput - The return type for the generateFlashcards function.
+ * - GenerateFlashcardImageInput - The input type for the generateFlashcardImage function.
+ * - GenerateFlashcardImageOutput - The return type for the generateFlashcardImage function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
+// Schemas and flow for generating flashcard text content
 const GenerateFlashcardsInputSchema = z.object({
   topic: z.string().describe('The topic for the flashcards.'),
   grade: z.string().describe('The grade level for the flashcards.'),
@@ -53,4 +57,41 @@ const generateFlashcardsFlow = ai.defineFlow(
     const {output} = await prompt(input);
     return output!;
   }
+);
+
+
+// Schemas and flow for generating a single flashcard image
+const GenerateFlashcardImageInputSchema = z.object({
+  imagePrompt: z.string().describe('The prompt for the image to be generated.'),
+});
+export type GenerateFlashcardImageInput = z.infer<typeof GenerateFlashcardImageInputSchema>;
+
+const GenerateFlashcardImageOutputSchema = z.object({
+  imageUrl: z.string().describe('The data URI of the generated image.'),
+});
+export type GenerateFlashcardImageOutput = z.infer<typeof GenerateFlashcardImageOutputSchema>;
+
+export async function generateFlashcardImage(input: GenerateFlashcardImageInput): Promise<GenerateFlashcardImageOutput> {
+    return generateFlashcardImageFlow(input);
+}
+
+const generateFlashcardImageFlow = ai.defineFlow(
+    {
+        name: 'generateFlashcardImageFlow',
+        inputSchema: GenerateFlashcardImageInputSchema,
+        outputSchema: GenerateFlashcardImageOutputSchema,
+    },
+    async ({ imagePrompt }) => {
+        const { media } = await ai.generate({
+            model: 'googleai/gemini-2.0-flash-preview-image-generation',
+            prompt: `A simple, clear, child-friendly cartoon icon of: ${imagePrompt}`,
+            config: { responseModalities: ['TEXT', 'IMAGE'] },
+        });
+
+        if (!media?.url) {
+            throw new Error('Image generation failed to return a data URL.');
+        }
+
+        return { imageUrl: media.url };
+    }
 );

@@ -5,8 +5,7 @@ import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { generateFlashcards } from "@/ai/flows/flashcard-generator";
-import { ai } from "@/ai/genkit";
+import { generateFlashcards, generateFlashcardImage } from "@/ai/flows/flashcard-generator";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -28,7 +27,7 @@ type CardData = {
 };
 
 type CardState = CardData & {
-  imageUrl?: string | null; // null indicates a failed image generation
+  imageUrl?: string | null; // undefined: loading, null: failed, string: success
   isFlipped: boolean;
 };
 
@@ -45,16 +44,11 @@ export default function FlashcardsPage() {
   const generateCardImages = async (generatedCards: CardState[]) => {
     await Promise.all(generatedCards.map(async (card, index) => {
         try {
-            const { media } = await ai.generate({
-                model: 'googleai/gemini-2.0-flash-preview-image-generation',
-                prompt: `A simple, clear, child-friendly cartoon icon of: ${card.imagePrompt}`,
-                config: { responseModalities: ['TEXT', 'IMAGE'] },
-            });
-
-            if (media?.url) {
+            const result = await generateFlashcardImage({ imagePrompt: card.imagePrompt });
+            if (result.imageUrl) {
                 setCards(prev => {
                     const newCards = [...prev];
-                    if (newCards[index]) newCards[index].imageUrl = media.url;
+                    if (newCards[index]) newCards[index].imageUrl = result.imageUrl;
                     return newCards;
                 });
             } else {
