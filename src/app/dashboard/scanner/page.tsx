@@ -28,7 +28,6 @@ const formSchema = z.object({
   curriculum: z.string({ required_error: "Please select a curriculum." }),
 });
 
-// Helper to shuffle array for the matching game
 const shuffleArray = <T,>(array: T[]): T[] => {
     if (!Array.isArray(array)) {
         return [];
@@ -41,7 +40,6 @@ const shuffleArray = <T,>(array: T[]): T[] => {
     return newArray;
 };
 
-// Helper to convert ArrayBuffer to Base64
 const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
     let binary = '';
     const bytes = new Uint8Array(buffer);
@@ -66,6 +64,21 @@ const languageConfig = {
     fr: { name: 'French', fontName: 'Helvetica', buttonText: 'Télécharger le PDF', fontUrl: null },
     de: { name: 'German', fontName: 'Helvetica', buttonText: 'PDF Herunterladen', fontUrl: null },
 } as const;
+
+type LanguageKey = keyof typeof languageConfig;
+
+const detectLanguage = (text: string): LanguageKey => {
+    // Basic detection based on character ranges. A more robust library could be used for higher accuracy.
+    if (/[\u0900-\u097F]/.test(text)) return 'hi'; // Devanagari (Hindi, Marathi)
+    if (/[\u0B80-\u0BFF]/.test(text)) return 'ta'; // Tamil
+    if (/[\u0980-\u09FF]/.test(text)) return 'bn'; // Bengali
+    if (/[\u0C00-\u0C7F]/.test(text)) return 'te'; // Telugu
+    if (/[\u0C80-\u0CFF]/.test(text)) return 'kn'; // Kannada
+    if (/[\u0A80-\u0AFF]/.test(text)) return 'gu'; // Gujarati
+    if (/[\u0A00-\u0A7F]/.test(text)) return 'pa'; // Gurmukhi (Punjabi)
+    // Add other language detections here
+    return 'en'; // Default to English
+}
 
 
 export default function ScannerPage() {
@@ -112,14 +125,23 @@ export default function ScannerPage() {
 
     try {
         const doc = new jsPDF();
-        // We can't know the language key for the config, so we'll default to English for the button text
-        // and Helvetica for the font if a custom one isn't needed. This part is imperfect.
-        const langKey = 'en';
+        const contentSample = results.learningObjectives || results.mcqQuestions?.[0] || '';
+        const langKey = detectLanguage(contentSample);
         const config = languageConfig[langKey];
-        const isCustomFont = false; // Cannot determine this without knowing language
+        const isCustomFont = !!config.fontUrl;
 
         if (isCustomFont) {
-            // This block will likely not run, but is kept for structure.
+            toast({ title: "Preparing download...", description: `Fetching font for ${config.name}.` });
+            try {
+                const fontRes = await fetch(config.fontUrl!);
+                if (!fontRes.ok) throw new Error(`Could not load font for ${config.name}.`);
+                const fontArrayBuffer = await fontRes.arrayBuffer();
+                const fontBase64 = arrayBufferToBase64(fontArrayBuffer);
+                doc.addFileToVFS(`${config.fontName}.ttf`, fontBase64);
+                doc.addFont(`${config.fontName}.ttf`, config.fontName, 'normal');
+            } catch (fontError: any) {
+                throw new Error(`Could not load font for ${config.name}. ${fontError.message}`);
+            }
         }
         
         doc.setFont(config.fontName);
@@ -131,14 +153,14 @@ export default function ScannerPage() {
 
         const setStyle = (style: 'normal' | 'bold') => {
           if (!isCustomFont) doc.setFont(config.fontName, style);
-          else doc.setFont(config.fontName, 'normal');
+          else doc.setFont(config.fontName, 'normal'); // Custom fonts might not support weights
         }
 
         const checkPageBreak = (neededHeight: number) => {
             if (y + neededHeight > pageHeight - margin) {
                 doc.addPage();
                 y = margin;
-                return true; // Page break occurred
+                return true;
             }
             return false;
         };
@@ -160,7 +182,6 @@ export default function ScannerPage() {
         doc.line(margin, y, pageWidth - margin, y);
         y += 10;
         
-        // Add curriculum info
         doc.setFontSize(12);
         setStyle('bold');
         doc.text("Sub-Topic:", margin, y);
@@ -207,9 +228,9 @@ export default function ScannerPage() {
         };
         
         addSection("A. Multiple Choice Questions", results.mcqQuestions);
-        questionCounter = 1; // Reset for next section
+        questionCounter = 1; 
         addSection("B. Fill in the Blanks", results.fillInTheBlankQuestions);
-        questionCounter = 1; // Reset for next section
+        questionCounter = 1; 
         addSection("C. Short Answer Questions", results.shortAnswerQuestions);
 
         if (results.matchTheColumnQuestions && results.matchTheColumnQuestions.length > 0) {
@@ -254,7 +275,7 @@ export default function ScannerPage() {
                 const lineCount = Math.max(termLines.length, defLines.length);
                 const neededHeight = lineCount * rowLineHeight + rowPadding;
 
-                if(checkPageBreak(neededHeight + 12)) { // +12 for header
+                if(checkPageBreak(neededHeight + 12)) {
                     drawHeader();
                 }
 
@@ -510,9 +531,3 @@ export default function ScannerPage() {
     </div>
   );
 }
-
-    
-
-    
-
-    
