@@ -23,7 +23,7 @@ const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
-  language: z.enum(["en", "hi", "mr", "ta"]),
+  language: z.enum(['en', 'hi', 'mr', 'ta', 'bn', 'te', 'kn', 'gu', 'pa', 'es', 'fr', 'de']),
 });
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -262,6 +262,14 @@ export default function SignupPage() {
                       <SelectItem value="hi">Hindi</SelectItem>
                       <SelectItem value="mr">Marathi</SelectItem>
                       <SelectItem value="ta">Tamil</SelectItem>
+                      <SelectItem value="bn">Bengali</SelectItem>
+                      <SelectItem value="te">Telugu</SelectItem>
+                      <SelectItem value="kn">Kannada</SelectItem>
+                      <SelectItem value="gu">Gujarati</SelectItem>
+                      <SelectItem value="pa">Punjabi</SelectItem>
+                      <SelectItem value="es">Spanish</SelectItem>
+                      <SelectItem value="fr">French</SelectItem>
+                      <SelectItem value="de">German</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

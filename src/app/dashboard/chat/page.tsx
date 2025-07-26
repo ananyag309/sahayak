@@ -24,14 +24,14 @@ import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
   question: z.string(),
-  language: z.enum(["en", "hi", "mr", "ta"]),
+  language: z.enum(['en', 'hi', 'mr', 'ta', 'bn', 'te', 'kn', 'gu', 'pa', 'es', 'fr', 'de']),
 });
 
 type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  language: "en" | "hi" | "mr" | "ta";
+  language: z.infer<typeof formSchema>['language'];
   imageUrl?: string | null;
   isError?: boolean;
   inputData?: AIChatInput;
@@ -144,7 +144,7 @@ export default function ChatPage() {
         setIsListening(false); 
       } else {
         try {
-            const langMap: Record<string, string> = { en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN' };
+            const langMap: Record<string, string> = { en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN', bn: 'bn-IN', te: 'te-IN', kn: 'kn-IN', gu: 'gu-IN', pa: 'pa-IN', es: 'es-ES', fr: 'fr-FR', de: 'de-DE' };
             recognition.lang = langMap[form.getValues('language')];
             recognition.start();
         } catch (err) {
@@ -208,7 +208,7 @@ export default function ChatPage() {
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(message.content);
-    const langMap: Record<string, string> = { en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN' };
+    const langMap: Record<string, string> = { en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN', bn: 'bn-IN', te: 'te-IN', kn: 'kn-IN', gu: 'gu-IN', pa: 'pa-IN', es: 'es-ES', fr: 'fr-FR', de: 'de-DE' };
     const targetLang = langMap[message.language] || 'en-IN';
     
     utterance.lang = targetLang;
@@ -459,6 +459,14 @@ export default function ChatPage() {
                             <SelectItem value="hi">Hindi</SelectItem>
                             <SelectItem value="mr">Marathi</SelectItem>
                             <SelectItem value="ta">Tamil</SelectItem>
+                            <SelectItem value="bn">Bengali</SelectItem>
+                            <SelectItem value="te">Telugu</SelectItem>
+                            <SelectItem value="kn">Kannada</SelectItem>
+                            <SelectItem value="gu">Gujarati</SelectItem>
+                            <SelectItem value="pa">Punjabi</SelectItem>
+                            <SelectItem value="es">Spanish</SelectItem>
+                            <SelectItem value="fr">French</SelectItem>
+                            <SelectItem value="de">German</SelectItem>
                           </SelectContent>
                         </Select>
                       </FormControl>

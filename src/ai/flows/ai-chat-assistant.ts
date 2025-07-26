@@ -13,7 +13,7 @@ import {z} from 'genkit';
 
 const AIChatInputSchema = z.object({
   question: z.string().optional().describe('The question or concept to explain.'),
-  language: z.enum(['en', 'hi', 'mr', 'ta']).describe('The language to use for the response.'),
+  language: z.enum(['en', 'hi', 'mr', 'ta', 'bn', 'te', 'kn', 'gu', 'pa', 'es', 'fr', 'de']).describe('The language to use for the response.'),
   imageDataUri: z.string().optional().describe("An optional image to discuss, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
 }).superRefine((data, ctx) => {
     if (!data.question && !data.imageDataUri) {

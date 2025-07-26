@@ -48,7 +48,7 @@ const formSchema = z.object({
   subject: z.string().min(3, { message: "Subject must be at least 3 characters." }),
   grade: z.string().min(1, { message: "Please select a grade." }),
   topics: z.string().min(3, { message: "Topics are required." }),
-  language: z.enum(["en", "hi", "mr", "ta"]),
+  language: z.enum(['en', 'hi', 'mr', 'ta', 'bn', 'te', 'kn', 'gu', 'pa', 'es', 'fr', 'de']),
 });
 
 type Plan = LessonPlanOutput['plan'];
@@ -192,10 +192,18 @@ export default function PlannerPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="en">English</SelectItem>
-                          <SelectItem value="hi">Hindi</SelectItem>
-                          <SelectItem value="mr">Marathi</SelectItem>
-                          <SelectItem value="ta">Tamil</SelectItem>
+                           <SelectItem value="en">English</SelectItem>
+                           <SelectItem value="hi">Hindi</SelectItem>
+                           <SelectItem value="mr">Marathi</SelectItem>
+                           <SelectItem value="ta">Tamil</SelectItem>
+                           <SelectItem value="bn">Bengali</SelectItem>
+                           <SelectItem value="te">Telugu</SelectItem>
+                           <SelectItem value="kn">Kannada</SelectItem>
+                           <SelectItem value="gu">Gujarati</SelectItem>
+                           <SelectItem value="pa">Punjabi</SelectItem>
+                           <SelectItem value="es">Spanish</SelectItem>
+                           <SelectItem value="fr">French</SelectItem>
+                           <SelectItem value="de">German</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

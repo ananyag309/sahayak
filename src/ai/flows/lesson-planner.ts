@@ -14,7 +14,7 @@ const LessonPlanInputSchema = z.object({
   subject: z.string().describe('The subject of the lesson plan.'),
   grade: z.string().describe('The grade level of the lesson plan.'),
   topics: z.string().describe('The topics to be covered in the lesson plan.'),
-  language: z.enum(['en', 'hi', 'mr', 'ta']).describe('The language for the lesson plan.'),
+  language: z.enum(['en', 'hi', 'mr', 'ta', 'bn', 'te', 'kn', 'gu', 'pa', 'es', 'fr', 'de']).describe('The language for the lesson plan.'),
 });
 export type LessonPlanInput = z.infer<typeof LessonPlanInputSchema>;
 

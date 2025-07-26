@@ -17,7 +17,7 @@ import {z} from 'genkit';
 const GenerateHomeworkSheetInputSchema = z.object({
   topic: z.string().describe('The topic for the homework sheet.'),
   grade: z.string().describe('The grade level for the homework.'),
-  language: z.enum(['en', 'hi', 'mr', 'ta']).describe('The language for the homework sheet.'),
+  language: z.enum(['en', 'hi', 'mr', 'ta', 'bn', 'te', 'kn', 'gu', 'pa', 'es', 'fr', 'de']).describe('The language for the homework sheet.'),
 });
 export type GenerateHomeworkSheetInput = z.infer<typeof GenerateHomeworkSheetInputSchema>;
 
@@ -37,7 +37,7 @@ export type GenerateHomeworkSheetOutput = z.infer<typeof GenerateHomeworkSheetOu
 // Schema for generating the answer key
 const GenerateAnswerKeyInputSchema = z.object({
     questions: z.array(QuestionSchema).describe('The array of questions for which to generate an answer key.'),
-    language: z.enum(['en', 'hi', 'mr', 'ta']).describe('The language for the answer key.'),
+    language: z.enum(['en', 'hi', 'mr', 'ta', 'bn', 'te', 'kn', 'gu', 'pa', 'es', 'fr', 'de']).describe('The language for the answer key.'),
 });
 export type GenerateAnswerKeyInput = z.infer<typeof GenerateAnswerKeyInputSchema>;
 

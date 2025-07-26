@@ -1,4 +1,3 @@
-
 // src/ai/flows/textbook-scanner.ts
 'use server';
 
@@ -19,7 +18,7 @@ const TextbookScannerInputSchema = z.object({
     .describe(
       "A photo of a textbook, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
-  language: z.enum(['en', 'hi', 'mr', 'ta']).describe('The language of the textbook content.'),
+  language: z.enum(['en', 'hi', 'mr', 'ta', 'bn', 'te', 'kn', 'gu', 'pa', 'es', 'fr', 'de']).describe('The language of the textbook content.'),
   curriculum: z.string().describe('The educational board, e.g., "NCERT".'),
 });
 export type TextbookScannerInput = z.infer<typeof TextbookScannerInputSchema>;

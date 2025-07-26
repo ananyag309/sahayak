@@ -24,7 +24,7 @@ import { Separator } from "@/components/ui/separator";
 const formSchema = z.object({
   topic: z.string().min(3, { message: "Topic must be at least 3 characters." }),
   grade: z.string().min(1, { message: "Please select a grade." }),
-  language: z.enum(["en", "hi", "mr", "ta"], { required_error: "Please select a language." }),
+  language: z.enum(['en', 'hi', 'mr', 'ta', 'bn', 'te', 'kn', 'gu', 'pa', 'es', 'fr', 'de'], { required_error: "Please select a language." }),
 });
 
 type Worksheet = GenerateHomeworkSheetOutput;
@@ -35,6 +35,14 @@ const languageConfig = {
     hi: { name: 'Hindi', fontName: 'NotoSansDevanagari', buttonText: 'पीडीएफ़ डाउनलोड करें', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-all-400-normal.ttf' },
     mr: { name: 'Marathi', fontName: 'NotoSansDevanagari', buttonText: 'पीडीएफ डाउनलोड करा', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-all-400-normal.ttf' },
     ta: { name: 'Tamil', fontName: 'NotoSansTamil', buttonText: 'PDF பதிவிறக்கவும்', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-tamil/files/noto-sans-tamil-all-400-normal.ttf' },
+    bn: { name: 'Bengali', fontName: 'NotoSansBengali', buttonText: 'পিডিএফ ডাউনলোড করুন', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-bengali/files/noto-sans-bengali-all-400-normal.ttf' },
+    te: { name: 'Telugu', fontName: 'NotoSansTelugu', buttonText: 'PDF డౌన్లోడ్ చేయండి', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-telugu/files/noto-sans-telugu-all-400-normal.ttf' },
+    kn: { name: 'Kannada', fontName: 'NotoSansKannada', buttonText: 'ಪಿಡಿಎಫ್ ಡೌನ್ಲೋಡ್ ಮಾಡಿ', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-kannada/files/noto-sans-kannada-all-400-normal.ttf' },
+    gu: { name: 'Gujarati', fontName: 'NotoSansGujarati', buttonText: 'પીડીએફ ડાઉનલોડ કરો', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-gujarati/files/noto-sans-gujarati-all-400-normal.ttf' },
+    pa: { name: 'Punjabi', fontName: 'NotoSansGurmukhi', buttonText: 'ਪੀਡੀਐਫ ਡਾਊਨਲੋਡ ਕਰੋ', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-gurmukhi/files/noto-sans-gurmukhi-all-400-normal.ttf' },
+    es: { name: 'Spanish', fontName: 'Helvetica', buttonText: 'Descargar PDF', fontUrl: null },
+    fr: { name: 'French', fontName: 'Helvetica', buttonText: 'Télécharger le PDF', fontUrl: null },
+    de: { name: 'German', fontName: 'Helvetica', buttonText: 'PDF Herunterladen', fontUrl: null },
 } as const;
 
 const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
@@ -111,8 +119,8 @@ export default function HomeworkPage() {
 
     try {
         const doc = new jsPDF();
-        const selectedLang = form.getValues('language');
-        const config = languageConfig[selectedLang];
+        const selectedLangKey = form.getValues('language');
+        const config = languageConfig[selectedLangKey];
         const isCustomFont = !!config.fontUrl;
 
         if (isCustomFont) {
@@ -265,7 +273,7 @@ export default function HomeworkPage() {
                       <FormControl><SelectTrigger><SelectValue placeholder="Select a language" /></SelectTrigger></FormControl>
                       <SelectContent>
                         {Object.entries(languageConfig).map(([key, value]) => (
-                            <SelectItem key={key} value={key}>{value.name}</SelectItem>
+                            <SelectItem key={key} value={key as z.infer<typeof formSchema>['language']}>{value.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -346,5 +354,3 @@ export default function HomeworkPage() {
     </div>
   );
 }
-
-    

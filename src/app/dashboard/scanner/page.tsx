@@ -25,7 +25,7 @@ import jsPDF from 'jspdf';
 
 const formSchema = z.object({
   photo: z.any().refine(file => file?.length == 1, "Please upload a photo."),
-  language: z.enum(["en", "hi", "mr", "ta"], { required_error: "Please select a language." }),
+  language: z.enum(['en', 'hi', 'mr', 'ta', 'bn', 'te', 'kn', 'gu', 'pa', 'es', 'fr', 'de'], { required_error: "Please select a language." }),
   curriculum: z.string({ required_error: "Please select a curriculum." }),
 });
 
@@ -55,6 +55,14 @@ const languageConfig = {
     hi: { name: 'Hindi', fontName: 'NotoSansDevanagari', buttonText: 'हिंदी वर्कशीट डाउनलोड करें', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-all-400-normal.ttf' },
     mr: { name: 'Marathi', fontName: 'NotoSansDevanagari', buttonText: 'मराठी वर्कशीट डाउनलोड करा', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-all-400-normal.ttf' },
     ta: { name: 'Tamil', fontName: 'NotoSansTamil', buttonText: 'தமிழ் பணித்தாள் பதிவிறக்கம்', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-tamil/files/noto-sans-tamil-all-400-normal.ttf' },
+    bn: { name: 'Bengali', fontName: 'NotoSansBengali', buttonText: 'পিডিএফ ডাউনলোড করুন', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-bengali/files/noto-sans-bengali-all-400-normal.ttf' },
+    te: { name: 'Telugu', fontName: 'NotoSansTelugu', buttonText: 'PDF డౌన్లోడ్ చేయండి', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-telugu/files/noto-sans-telugu-all-400-normal.ttf' },
+    kn: { name: 'Kannada', fontName: 'NotoSansKannada', buttonText: 'ಪಿಡಿಎಫ್ ಡೌನ್ಲೋಡ್ ಮಾಡಿ', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-kannada/files/noto-sans-kannada-all-400-normal.ttf' },
+    gu: { name: 'Gujarati', fontName: 'NotoSansGujarati', buttonText: 'પીડીએફ ડાઉનલોડ કરો', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-gujarati/files/noto-sans-gujarati-all-400-normal.ttf' },
+    pa: { name: 'Punjabi', fontName: 'NotoSansGurmukhi', buttonText: 'ਪੀਡੀਐਫ ਡਾਊਨਲੋਡ ਕਰੋ', fontUrl: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-gurmukhi/files/noto-sans-gurmukhi-all-400-normal.ttf' },
+    es: { name: 'Spanish', fontName: 'Helvetica', buttonText: 'Descargar PDF', fontUrl: null },
+    fr: { name: 'French', fontName: 'Helvetica', buttonText: 'Télécharger le PDF', fontUrl: null },
+    de: { name: 'German', fontName: 'Helvetica', buttonText: 'PDF Herunterladen', fontUrl: null },
 } as const;
 
 
@@ -103,8 +111,8 @@ export default function ScannerPage() {
 
     try {
         const doc = new jsPDF();
-        const selectedLang = form.getValues('language');
-        const config = languageConfig[selectedLang];
+        const selectedLangKey = form.getValues('language');
+        const config = languageConfig[selectedLangKey];
         const isCustomFont = !!config.fontUrl;
 
         if (isCustomFont) {
@@ -261,7 +269,7 @@ export default function ScannerPage() {
             }
         }
         
-        doc.save(`sahayak-worksheet-grade-${results.identifiedGradeLevel.replace(/\s/g, '_')}-${selectedLang}.pdf`);
+        doc.save(`sahayak-worksheet-grade-${results.identifiedGradeLevel.replace(/\s/g, '_')}-${selectedLangKey}.pdf`);
         toast({ title: "PDF Download Started!" });
     } catch(err: any) {
         console.error("PDF Generation Error:", err);
@@ -398,9 +406,18 @@ export default function ScannerPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {Object.entries(languageConfig).map(([key, value]) => (
-                            <SelectItem key={key} value={key}>{value.name}</SelectItem>
-                          ))}
+                          <SelectItem value="en">English</SelectItem>
+                          <SelectItem value="hi">Hindi</SelectItem>
+                          <SelectItem value="mr">Marathi</SelectItem>
+                          <SelectItem value="ta">Tamil</SelectItem>
+                          <SelectItem value="bn">Bengali</SelectItem>
+                          <SelectItem value="te">Telugu</SelectItem>
+                          <SelectItem value="kn">Kannada</SelectItem>
+                          <SelectItem value="gu">Gujarati</SelectItem>
+                          <SelectItem value="pa">Punjabi</SelectItem>
+                          <SelectItem value="es">Spanish</SelectItem>
+                          <SelectItem value="fr">French</SelectItem>
+                          <SelectItem value="de">German</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
