@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { useForm } from "react";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { textbookScanner, type TextbookScannerInput, type TextbookScannerOutput } from "@/ai/flows/textbook-scanner";
@@ -510,6 +510,8 @@ export default function ScannerPage() {
     </div>
   );
 }
+
+    
 
     
 
