@@ -190,8 +190,8 @@ export default function ChatPage() {
   };
 
   const handleSpeak = (message: Message) => {
-    if (!('speechSynthesis' in window)) {
-      toast({ variant: 'destructive', title: 'Feature Not Supported', description: 'Your browser does not support text-to-speech.' });
+    if (!('speechSynthesis' in window) || voices.length === 0) {
+      toast({ variant: 'destructive', title: 'Feature Not Supported', description: 'Your browser does not support text-to-speech, or voices have not loaded yet.' });
       return;
     }
 
@@ -207,20 +207,20 @@ export default function ChatPage() {
     
     window.speechSynthesis.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(message.content);
     const langMap: Record<string, string> = { en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN', bn: 'bn-IN', te: 'te-IN', kn: 'kn-IN', gu: 'gu-IN', pa: 'pa-IN', es: 'es-ES', fr: 'fr-FR', de: 'de-DE' };
     const targetLang = langMap[message.language] || 'en-IN';
     
-    utterance.lang = targetLang;
-    
-    // Find the best voice with fallbacks
     const voice = voices.find(v => v.lang === targetLang) || voices.find(v => v.lang.startsWith(message.language));
-    
-    if (voice) {
-      utterance.voice = voice;
-    } else {
-        console.warn(`No specific voice found for language: ${targetLang}. Using browser default.`);
+
+    if (!voice) {
+      console.warn(`No specific voice found for language: ${targetLang}.`);
+      toast({ variant: 'destructive', title: 'Voice Not Available', description: `Your browser does not have a voice for the selected language.` });
+      return;
     }
+    
+    const utterance = new SpeechSynthesisUtterance(message.content);
+    utterance.lang = targetLang;
+    utterance.voice = voice;
     
     utterance.onend = () => setSpeakingMessageId(null);
     utterance.onerror = (e) => {
@@ -487,3 +487,5 @@ export default function ChatPage() {
     </div>
   );
 }
+
+    
