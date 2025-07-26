@@ -63,12 +63,6 @@ const tools = [
       href: '/dashboard/flashcards',
       icon: <Layers className="h-8 w-8 text-primary" />,
     },
-    {
-      title: 'Curriculum Agent',
-      description: 'Align topics with curriculum standards.',
-      href: '/dashboard/agent',
-      icon: <Wand2 className="h-8 w-8 text-primary" />,
-    },
   ];
 
 export default function DashboardPage() {

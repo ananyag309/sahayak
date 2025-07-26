@@ -65,7 +65,6 @@ const navItems = [
   { href: "/dashboard/games", icon: Gamepad2, label: "Game Generator" },
   { href: "/dashboard/flashcards", icon: Layers, label: "Flashcard Creator" },
   { href: "/dashboard/library", icon: Library, label: "My Library" },
-  { href: "/dashboard/agent", icon: Wand2, label: "Curriculum Agent" },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
