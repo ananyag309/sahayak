@@ -72,11 +72,22 @@ const agentPrompt = ai.definePrompt({
 });
 
 
+const curriculumAgentFlow = ai.defineFlow(
+    {
+        name: 'curriculumAgentFlow',
+        inputSchema: CurriculumAgentInputSchema,
+        outputSchema: CurriculumAgentOutputSchema,
+    },
+    async (input) => {
+        const {output} = await agentPrompt(input);
+        if (!output) {
+            throw new Error("The agent failed to produce a response.");
+        }
+        return output;
+    }
+);
+
 // Define the main flow for the agent
 export async function runCurriculumAgent(input: CurriculumAgentInput): Promise<CurriculumAgentOutput> {
-    const {output} = await agentPrompt(input);
-    if (!output) {
-      throw new Error("The agent failed to produce a response.");
-    }
-    return output;
+    return curriculumAgentFlow(input);
 }
