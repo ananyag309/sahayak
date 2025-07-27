@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/components/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, onSnapshot } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -43,27 +43,33 @@ export default function LibraryPage() {
     const [selectedFolderId, setSelectedFolderId] = useState<'all' | 'uncategorized' | string>('all');
 
     useEffect(() => {
-        if (!user) {
-            setIsLoading(false);
-            return;
-        };
-
-        if (user.uid === 'demo-user') {
+        if (!user || user.uid === 'demo-user') {
             setIsLoading(false);
             return;
         }
 
-        const fetchData = async () => {
-            setIsLoading(true);
-            try {
-                // Fetch folders - remove orderBy to prevent index error and sort on client
-                const folderQuery = query(collection(db, "folders"), where("userId", "==", user.uid));
-                const folderSnapshot = await getDocs(folderQuery);
-                const userFolders = folderSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Folder));
-                // Sort folders on the client-side
-                userFolders.sort((a, b) => a.name.localeCompare(b.name));
-                setFolders(userFolders);
+        // --- Fetch Folders (with onSnapshot for real-time updates) ---
+        // Query without ordering by name to avoid needing a composite index
+        const folderQuery = query(collection(db, "folders"), where("userId", "==", user.uid));
+        const unsubscribeFolders = onSnapshot(folderQuery, (snapshot) => {
+            const userFolders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Folder));
+            // Sort folders on the client-side
+            userFolders.sort((a, b) => a.name.localeCompare(b.name));
+            setFolders(userFolders);
+            setIsLoading(false); // Set loading to false after first fetch
+        }, (error) => {
+            console.error("Error fetching folders:", error);
+            toast({
+                variant: "destructive",
+                title: "Failed to load folders",
+                description: "Could not retrieve your saved folders. Please try again later."
+            });
+            setIsLoading(false);
+        });
 
+        // --- Fetch Assets ---
+        const fetchAssets = async () => {
+             try {
                 // Fetch diagrams (and other assets in the future)
                 const diagramQuery = query(collection(db, "diagrams"), where("userId", "==", user.uid));
                 const diagramSnapshot = await getDocs(diagramQuery);
@@ -79,7 +85,6 @@ export default function LibraryPage() {
                         type: 'diagram',
                     } as Asset;
                 });
-                // In future, fetch other asset types (lessonPlans, worksheets) and combine them
                 
                 // Sort assets by creation date on the client-side
                 userDiagrams.sort((a, b) => {
@@ -89,19 +94,21 @@ export default function LibraryPage() {
                 });
 
                 setAssets(userDiagrams);
-
             } catch (error) {
-                console.error("Error fetching library data:", error);
+                 console.error("Error fetching library assets:", error);
                 toast({
                     variant: "destructive",
-                    title: "Failed to load library",
+                    title: "Failed to load library items",
                     description: "Could not retrieve your saved items. Please try again later."
                 })
-            } finally {
-                setIsLoading(false);
             }
         };
-        fetchData();
+
+        fetchAssets();
+        
+        // Cleanup snapshot listener on unmount
+        return () => unsubscribeFolders();
+
     }, [user, toast]);
 
     const filteredAssets = useMemo(() => {
