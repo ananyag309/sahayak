@@ -1,0 +1,65 @@
+{
+  "grade_levels": {
+    "elementary": {
+      "grades": [1, 2, 3, 4, 5],
+      "characteristics": "Simple vocabulary, concrete concepts, basic operations, visual learning",
+      "question_types": ["fill_blanks", "matching", "simple_mcq", "true_false", "drawing"],
+      "complexity": "low",
+      "instruction_style": "Clear, simple instructions with examples",
+      "vocabulary_level": "Basic, everyday words",
+      "cognitive_level": "Remember, understand, apply basic concepts"
+    },
+    "middle": {
+      "grades": [6, 7, 8],
+      "characteristics": "Moderate vocabulary, abstract thinking, multi-step problems, developing reasoning",
+      "question_types": ["mcq", "short_answer", "problem_solving", "compare_contrast", "explain"],
+      "complexity": "medium",
+      "instruction_style": "Detailed instructions with guided steps",
+      "vocabulary_level": "Academic vocabulary with explanations",
+      "cognitive_level": "Understand, apply, analyze basic relationships"
+    },
+    "high": {
+      "grades": [9, 10, 11, 12],
+      "characteristics": "Advanced vocabulary, critical thinking, complex analysis, independent reasoning",
+      "question_types": ["essay", "analysis", "complex_problems", "synthesis", "evaluation", "research"],
+      "complexity": "high",
+      "instruction_style": "Independent work with minimal guidance",
+      "vocabulary_level": "Advanced academic and technical terms",
+      "cognitive_level": "Analyze, evaluate, create, synthesize"
+    }
+  },
+  "content_adaptation_rules": {
+    "mathematics": {
+      "elementary": "Basic arithmetic, simple word problems with pictures",
+      "middle": "Multi-step problems, beginning algebra, geometric concepts",
+      "high": "Advanced algebra, calculus concepts, complex problem solving"
+    },
+    "science": {
+      "elementary": "Observation-based questions, simple experiments, basic concepts",
+      "middle": "Hypothesis formation, data analysis, scientific method",
+      "high": "Complex experiments, scientific reasoning, research analysis"
+    },
+    "english": {
+      "elementary": "Vocabulary, simple reading comprehension, basic grammar",
+      "middle": "Literary analysis, essay writing, advanced grammar",
+      "high": "Critical analysis, research papers, advanced composition"
+    },
+    "social_studies": {
+      "elementary": "Timeline activities, map skills, community helpers",
+      "middle": "Historical analysis, geographic reasoning, civic understanding",
+      "high": "Historical synthesis, political analysis, economic understanding"
+    }
+  },
+  "quality_standards": {
+    "Content Accuracy": "Information must be factually correct and age-appropriate",
+    "Grade Appropriateness": "Language and concepts must match target grade cognitive level",
+    "Question Quality": "Questions should be clear, unambiguous, and well-constructed",
+    "Difficulty Progression": "Appropriate challenge level for each grade without being overwhelming",
+    "Educational Value": "Clear learning objectives and meaningful assessment",
+    "Clarity": "Instructions and questions must be easy to understand",
+    "Engagement": "Content should be interesting and relevant to students",
+    "Completeness": "Comprehensive coverage of key concepts from source material",
+    "Differentiation Quality": "Meaningful adaptation across grade levels",
+    "Assessment Alignment": "Questions should align with grade-level educational standards"
+  }
+}
