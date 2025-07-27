@@ -351,7 +351,10 @@ export default function ScannerPage() {
             <div className="flex-1">
             {isLoading ? (
                 <Card className="min-h-[400px] flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary"/>
+                    <div className="flex flex-col items-center gap-4 text-center p-4">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary"/>
+                        <p className="text-muted-foreground">Scanning and generating questions...<br/>This can take up to a minute.</p>
+                    </div>
                 </Card>
             ) : results ? (
                 <>
