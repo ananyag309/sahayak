@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -48,6 +49,51 @@ export default function LoginPage() {
     }
   }, [user, loading, router]);
 
+  const handleAuthError = (error: any) => {
+    let description: React.ReactNode = "An unexpected error occurred. Please try again.";
+
+    if (error.code && (error.code.includes('auth/configuration-not-found') || error.code.includes('auth/api-key-not-valid'))) {
+        description = (
+            <span>
+                The authentication service is not enabled for this project. Please{' '}
+                <a
+                    href={`https://console.cloud.google.com/apis/library/identitytoolkit.googleapis.com?project=${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline font-medium"
+                >
+                    click here to enable the Identity Toolkit API
+                </a>
+                {' '}and try again. It may take a few minutes to activate.
+            </span>
+        );
+    } else if (error.code === 'auth/operation-not-allowed') {
+         description = (
+            <span>
+            This sign-in method is not enabled. Please enable it in your{' '}
+            <a
+                href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/authentication/providers`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline font-medium"
+            >
+                Firebase project settings
+            </a>.
+            </span>
+        );
+    } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        description = "Invalid email or password. Please double-check your credentials or sign up if you don't have an account.";
+    } else {
+        description = error.message;
+    }
+
+    toast({
+        variant: "destructive",
+        title: "Authentication Failed",
+        description,
+    });
+  }
+
   const handleGoogleSignIn = async () => {
     if (!isFirebaseConfigured || !auth || !db) {
       toast({
@@ -76,45 +122,7 @@ export default function LoginPage() {
         });
       }
     } catch (error: any) {
-        let description: React.ReactNode = "An unexpected error occurred. Please try again.";
-        if (error.message && error.message.includes('identity-toolkit')) {
-            description = (
-                <span>
-                    The authentication service is not enabled for this project. Please{' '}
-                    <a
-                        href={`https://console.cloud.google.com/apis/library/identitytoolkit.googleapis.com?project=${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="underline font-medium"
-                    >
-                        enable the Identity Toolkit API
-                    </a>
-                    {' '}and try again. It may take a few minutes to activate.
-                </span>
-            );
-        } else if (error.code === 'auth/operation-not-allowed') {
-             description = (
-                <span>
-                Google Sign-in is not enabled. Please enable it in your{' '}
-                <a
-                    href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/authentication/providers`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline font-medium"
-                >
-                    Firebase project settings
-                </a>.
-                </span>
-            );
-        } else {
-            description = error.message;
-        }
-
-        toast({
-            variant: "destructive",
-            title: "Google Sign-In Failed",
-            description,
-        });
+        handleAuthError(error);
     } finally {
       setIsGoogleLoading(false);
     }
@@ -134,33 +142,7 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, values.email, values.password);
     } catch (error: any) {
-      let description: React.ReactNode = "An unexpected error occurred. Please try again.";
-
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-          description = "Invalid email or password. Please double-check your credentials or sign up if you don't have an account.";
-      } else if (error.code === 'auth/operation-not-allowed') {
-          description = (
-            <span>
-              Email/Password sign-in is not enabled. Please{' '}
-              <a
-                href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/authentication/providers`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline font-medium"
-              >
-                click here to enable it in your Firebase project
-              </a>.
-            </span>
-          );
-      } else {
-        description = error.message;
-      }
-      
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description,
-      });
+      handleAuthError(error);
     } finally {
       setIsLoading(false);
     }
