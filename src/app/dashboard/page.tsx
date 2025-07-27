@@ -10,6 +10,7 @@ import {
   Layers,
   ArrowRight,
   ClipboardList,
+  Video,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -31,6 +32,12 @@ const tools = [
       description: 'Create diagrams for any topic instantly.',
       href: '/dashboard/diagram',
       icon: <LayoutTemplate className="h-8 w-8 text-primary" />,
+    },
+    {
+      title: 'Video Generator',
+      description: 'Generate short videos from a topic.',
+      href: '/dashboard/video',
+      icon: <Video className="h-8 w-8 text-primary" />,
     },
     {
       title: 'Reading Assessment',

@@ -50,6 +50,7 @@ import {
   Plus,
   ScanLine,
   Sun,
+  Video,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -59,6 +60,7 @@ const navItems = [
   { href: "/dashboard/chat", icon: BrainCircuit, label: "AI Chat" },
   { href: "/dashboard/scanner", icon: ScanLine, label: "Textbook Scanner" },
   { href: "/dashboard/diagram", icon: LayoutTemplate, label: "Diagram Generator" },
+  { href: "/dashboard/video", icon: Video, label: "Video Generator" },
   { href: "/dashboard/reading", icon: Mic, label: "Reading Assessment" },
   { href: "/dashboard/planner", icon: BookOpen, label: "Lesson Planner" },
   { href: "/dashboard/homework", icon: ClipboardList, label: "Homework Generator" },
