@@ -180,6 +180,51 @@ In many Indian schools, a **single teacher handles multiple grades** with little
 
 ---
 
+
+### 🎯 Target Market
+
+- Government & semi-private schools in Tier 2/3 Indian towns
+- Multi-grade classroom teachers in under-resourced environments
+- EdTech partners supporting foundational learning
+
+### 💡 Core Offerings
+
+| Tier               | Features                                                                                                           | Pricing (INR)                                |
+|--------------------|--------------------------------------------------------------------------------------------------------------------|-----------------------------------------------|
+| **Free Tier**      | - Worksheet & lesson plan generator<br>- Explanations in local languages<br>- Flashcards                         | ₹0                                            |
+| **Standard Plan**  | - All free tier +<br>• Story & diagram gen<br>• Weekly planner<br>• Unlimited use                                 | ₹1,500–₹3,000 per classroom/year             |
+| **Premium Plan**   | - All Standard features +<br>• **AI WhatsApp & Email Agent**<br>• **Oral assessment (ElevenLabs)**<br>• **Vapi video generator** | ₹8,000–₹12,000 per classroom/year            |
+
+### 🧠 Monetization Strategy
+
+| Revenue Channel                   | Description                                                                                  |
+|----------------------------------|----------------------------------------------------------------------------------------------|
+| Institutional Subscriptions      | Annual school licenses based on classroom count                                              |
+| Premium AI Agent Add-ons         | WhatsApp/email assistant to handle parent queries                                            |
+| Voice/Video Tooling              | ElevenLabs for speech assessment, Vapi for visual lectures (available in Premium only)       |
+| White-Label EdTech Integration   | API-based integration with EdTech platforms                                                  |
+
+### 💰 Cost Structure
+
+| Component                  | Estimate                                                                  |
+|---------------------------|---------------------------------------------------------------------------|
+| Gemini API (1.5/2.0)      | Scalable per usage, efficient under Firebase free-tier + credits           |
+| Firebase Hosting/Functions| ~₹2,000–₹5,000/month for 50+ schools                                       |
+| ElevenLabs (TTS)          | ~₹1,500/month per school for narration                                     |
+| Vapi (Video Gen)          | ~₹3,000/month for video story generation                                   |
+| WhatsApp/Email Agent Ops  | ~₹500–₹1,000/month per teacher                                             |
+
+### 📈 Scalability & Market Fit
+
+| Factor                      | Why It Works                                                                 |
+|-----------------------------|------------------------------------------------------------------------------|
+| High Social Impact          | Helps 1 teacher manage 30–100+ students across multiple grades              |
+| Modular Premium Add-ons     | Schools can choose what they need as they scale                             |
+| Government Alignment        | Fits with NEP 2020 and digital learning initiatives                         |
+| Firebase Cloud Architecture | Serverless, low-maintenance, scalable globally                             |
+
+---
+
 ## 🚀 Future Improvements
 
 - Add Gemini 1.5 Pro or Gemini 2 for enhanced planning
