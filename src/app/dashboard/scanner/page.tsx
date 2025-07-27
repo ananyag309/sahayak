@@ -26,7 +26,6 @@ import jsPDF from 'jspdf';
 const formSchema = z.object({
   photo: z.any().refine(file => file?.length == 1, "Please upload a photo."),
   curriculum: z.string({ required_error: "Please select a curriculum." }),
-  language: z.enum(['en', 'hi', 'mr', 'ta', 'bn', 'te', 'kn', 'gu', 'pa', 'es', 'fr', 'de']).optional(),
 });
 
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -54,7 +53,6 @@ export default function ScannerPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       curriculum: "NCERT",
-      language: "en",
     }
   });
 
@@ -88,7 +86,7 @@ export default function ScannerPage() {
     try {
         const doc = new jsPDF();
         
-        // Use a standard font that has some unicode support. This avoids the font fetching error.
+        // Use a standard font that has some unicode support. This avoids the font fetching error for many common cases.
         doc.setFont('Helvetica', 'normal');
 
         const pageHeight = doc.internal.pageSize.height;
@@ -114,6 +112,7 @@ export default function ScannerPage() {
         doc.text(`Date: ____________________`, pageWidth - margin, y, { align: 'right' });
         y += 7;
         doc.text(`Grade: ${results.identifiedGradeLevel || '______'}`, margin, y);
+        doc.text(`Language: ${results.identifiedLanguage || '______'}`, pageWidth - margin, y, { align: 'right' });
         y += 7;
 
         doc.setLineWidth(0.5);
@@ -160,9 +159,7 @@ export default function ScannerPage() {
         };
         
         addSection("A. Multiple Choice Questions", results.mcqQuestions);
-        questionCounter = 1; 
         addSection("B. Fill in the Blanks", results.fillInTheBlankQuestions);
-        questionCounter = 1; 
         addSection("C. Short Answer Questions", results.shortAnswerQuestions);
 
         if (results.matchTheColumnQuestions && results.matchTheColumnQuestions.length > 0) {
@@ -213,14 +210,14 @@ export default function ScannerPage() {
             }
         }
         
-        doc.save(`sahayak-worksheet-grade-${results.identifiedGradeLevel.replace(/\s/g, '_')}.pdf`);
+        doc.save(`sahayak-worksheet-${results.identifiedGradeLevel.replace(/\s/g, '_')}.pdf`);
         toast({ title: "PDF Download Started!" });
     } catch(err: any) {
         console.error("PDF Generation Error:", err);
         toast({
             variant: "destructive",
             title: "PDF Generation Failed",
-            description: err.message || "Could not generate PDF."
+            description: err.message || "Could not generate PDF. The text may contain characters not supported by standard PDF fonts.",
         });
     } finally {
         setIsDownloading(false);
@@ -236,7 +233,6 @@ export default function ScannerPage() {
       const input: TextbookScannerInput = { 
         photoDataUri, 
         curriculum: values.curriculum,
-        language: values.language,
       };
       const result = await textbookScanner(input);
       setResults(result);
@@ -250,7 +246,7 @@ export default function ScannerPage() {
             imageURL: imageUrl,
             resultText: JSON.stringify(result),
             grade: result.identifiedGradeLevel,
-            language: values.language,
+            language: result.identifiedLanguage,
             curriculum: values.curriculum,
             createdAt: serverTimestamp(),
         });
@@ -275,7 +271,7 @@ export default function ScannerPage() {
       <div className="flex flex-col gap-4 no-print">
         <header>
           <h1 className="text-3xl font-bold tracking-tight font-headline">Textbook Scanner</h1>
-          <p className="text-muted-foreground">Upload a photo of a textbook page to generate a curriculum-aligned, downloadable PDF worksheet.</p>
+          <p className="text-muted-foreground">Upload a photo of a textbook page. The AI will auto-detect the language and generate a worksheet.</p>
         </header>
         <Card>
           <CardHeader>
@@ -318,37 +314,6 @@ export default function ScannerPage() {
                 />
                  <FormField
                   control={form.control}
-                  name="language"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Language of Text in Photo</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a language" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="en">English</SelectItem>
-                          <SelectItem value="hi">Hindi</SelectItem>
-                          <SelectItem value="mr">Marathi</SelectItem>
-                          <SelectItem value="ta">Tamil</SelectItem>
-                          <SelectItem value="bn">Bengali</SelectItem>
-                          <SelectItem value="te">Telugu</SelectItem>
-                          <SelectItem value="kn">Kannada</SelectItem>
-                          <SelectItem value="gu">Gujarati</SelectItem>
-                          <SelectItem value="pa">Punjabi</SelectItem>
-                          <SelectItem value="es">Spanish</SelectItem>
-                          <SelectItem value="fr">French</SelectItem>
-                          <SelectItem value="de">German</SelectItem>
-                        </SelectContent>
-                      </Select>
-                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
                   name="curriculum"
                   render={({ field }) => (
                     <FormItem>
@@ -380,7 +345,7 @@ export default function ScannerPage() {
       <div className="flex flex-col gap-4">
         <div className="screen-only flex flex-col gap-4 flex-1">
             <header>
-                <h2 className="text-2xl font-bold tracking-tight font-headline">Generated Questions (in English)</h2>
+                <h2 className="text-2xl font-bold tracking-tight font-headline">Generated Worksheet</h2>
                 <p className="text-muted-foreground">Results from the AI will appear here.</p>
             </header>
             <div className="flex-1">
@@ -404,6 +369,10 @@ export default function ScannerPage() {
                   </CardHeader>
                   <CardContent className="space-y-2">
                       <div>
+                          <h4 className="font-semibold">Identified Language:</h4>
+                          <p className="text-muted-foreground">{results.identifiedLanguage}</p>
+                      </div>
+                       <div>
                           <h4 className="font-semibold">Identified Grade Level:</h4>
                           <p className="text-muted-foreground">{results.identifiedGradeLevel}</p>
                       </div>
