@@ -83,7 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [user, pathname]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   if (loading) {
