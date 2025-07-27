@@ -53,11 +53,6 @@ export default function SignupPage() {
     }
   }, [user, loading, router]);
 
-  const handleDemoMode = () => {
-    sessionStorage.setItem('isDemoMode', 'true');
-    router.push('/dashboard');
-  };
-
   const handleGoogleSignIn = async () => {
     if (!isFirebaseConfigured || !auth || !db) {
       toast({
@@ -197,119 +192,118 @@ export default function SignupPage() {
       </CardHeader>
       <CardContent>
         {!isFirebaseConfigured && (
-            <Alert className="mb-4">
+            <Alert variant="destructive" className="mb-4">
                 <AlertTitle>Firebase Not Configured</AlertTitle>
                 <AlertDescription>
-                  Real sign-up is disabled. Please use the "Continue in Demo Mode" button to explore the app.
+                  Authentication is disabled. Please configure your Firebase environment variables to sign up.
                 </AlertDescription>
             </Alert>
         )}
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="John Doe" {...field} disabled={!isFirebaseConfigured} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+        <div className="space-y-4">
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleSignIn}
+              disabled={isLoading || isGoogleLoading || !isFirebaseConfigured}
+            >
+              {isGoogleLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <GoogleIcon className="mr-2 h-4 w-4" />
               )}
-            />
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder="name@example.com" {...field} disabled={!isFirebaseConfigured} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} disabled={!isFirebaseConfigured} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="language"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Preferred Language</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!isFirebaseConfigured}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a language" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="hi">Hindi</SelectItem>
-                      <SelectItem value="mr">Marathi</SelectItem>
-                      <SelectItem value="ta">Tamil</SelectItem>
-                      <SelectItem value="bn">Bengali</SelectItem>
-                      <SelectItem value="te">Telugu</SelectItem>
-                      <SelectItem value="kn">Kannada</SelectItem>
-                      <SelectItem value="gu">Gujarati</SelectItem>
-                      <SelectItem value="pa">Punjabi</SelectItem>
-                      <SelectItem value="es">Spanish</SelectItem>
-                      <SelectItem value="fr">French</SelectItem>
-                      <SelectItem value="de">German</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading || !isFirebaseConfigured}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Account
+              Sign Up with Google
             </Button>
-          </form>
-        </Form>
-        <div className="relative my-4">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">
-              Or continue with
-            </span>
-          </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">
+                  Or with email
+                </span>
+              </div>
+            </div>
+            
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="John Doe" {...field} disabled={!isFirebaseConfigured || isLoading || isGoogleLoading} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input placeholder="name@example.com" {...field} disabled={!isFirebaseConfigured || isLoading || isGoogleLoading} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="••••••••" {...field} disabled={!isFirebaseConfigured || isLoading || isGoogleLoading} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="language"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preferred Language</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!isFirebaseConfigured || isLoading || isGoogleLoading}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a language" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="en">English</SelectItem>
+                          <SelectItem value="hi">Hindi</SelectItem>
+                          <SelectItem value="mr">Marathi</SelectItem>
+                          <SelectItem value="ta">Tamil</SelectItem>
+                          <SelectItem value="bn">Bengali</SelectItem>
+                          <SelectItem value="te">Telugu</SelectItem>
+                          <SelectItem value="kn">Kannada</SelectItem>
+                          <SelectItem value="gu">Gujarati</SelectItem>
+                          <SelectItem value="pa">Punjabi</SelectItem>
+                          <SelectItem value="es">Spanish</SelectItem>
+                          <SelectItem value="fr">French</SelectItem>
+                          <SelectItem value="de">German</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading || !isFirebaseConfigured}>
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Create Account
+                </Button>
+              </form>
+            </Form>
         </div>
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={handleGoogleSignIn}
-          disabled={isLoading || isGoogleLoading || !isFirebaseConfigured}
-        >
-          {isGoogleLoading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <GoogleIcon className="mr-2 h-4 w-4" />
-          )}
-          Google
-        </Button>
-        
-        <Button variant={!isFirebaseConfigured ? "default" : "secondary"} className="w-full mt-4" onClick={handleDemoMode}>
-            Continue in Demo Mode
-        </Button>
-        
         <div className="mt-4 text-center text-sm">
           Already have an account?{" "}
           <Link href="/login" className="underline hover:text-primary">

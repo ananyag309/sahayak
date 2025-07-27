@@ -32,7 +32,7 @@ import {
   SidebarInset,
 } from "@/components/ui/sidebar";
 import { Logo } from "@/components/logo";
-import { auth } from "@/lib/firebase";
+import { auth, isFirebaseConfigured } from "@/lib/firebase";
 import {
   BookOpen,
   BrainCircuit,
@@ -53,6 +53,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const navItems = [
   { href: "/dashboard", icon: Home, label: "Dashboard" },
@@ -105,16 +106,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 
   const handleSignOut = () => {
-    sessionStorage.removeItem('isDemoMode');
     if (auth) {
         auth.signOut();
     } else {
+        // Fallback for when firebase isn't configured but somehow they got here
         router.push('/login');
     }
   };
 
   if (loading || !user) {
-    return null;
+    // This shows a skeleton loader while the auth state is being determined.
+    // auth-provider also has a loader, but this one is specific to the dashboard layout.
+    return (
+      <div className="flex h-screen w-full">
+        <div className="w-64 border-r p-4 space-y-4 hidden md:block">
+           <Skeleton className="h-10 w-3/4" />
+           <div className="space-y-2 mt-8">
+             {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
+           </div>
+        </div>
+        <div className="flex-1 p-6">
+            <Skeleton className="h-12 w-1/3 mb-6" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-48 w-full" />
+            </div>
+        </div>
+      </div>
+    );
   }
   
   const getInitials = (name: string | null | undefined) => {
@@ -204,7 +224,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </div>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut}>
+              <DropdownMenuItem onClick={handleSignOut} disabled={!isFirebaseConfigured}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

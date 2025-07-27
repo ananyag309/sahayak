@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -22,35 +22,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
-    const demo = sessionStorage.getItem('isDemoMode') === 'true';
-
-    if (demo) {
-      console.warn("In Demo Mode. Using a mock user for UI preview.");
-      const mockUser = {
-        uid: 'demo-user', // Use a specific string to identify demo user
-        displayName: 'Demo User',
-        email: 'demo@example.com',
-        photoURL: null,
-      } as User;
-      setUser(mockUser);
+    if (!isFirebaseConfigured) {
+      // If firebase is not set up, don't attempt to authenticate.
+      // The login/signup pages will show a warning.
       setLoading(false);
-      return; // Exit early, do not set up Firebase listener.
+      // If user tries to access a protected route without firebase, redirect them.
+      if (!['/login', '/signup', '/'].includes(pathname)) {
+        router.push('/login');
+      }
+      return;
     }
 
-    if (isFirebaseConfigured && auth) {
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
-        setUser(user);
-        setLoading(false);
-      });
-      return () => unsubscribe();
-    } else {
-      // Firebase is not configured and we're not in demo mode.
-      setUser(null);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
       setLoading(false);
-    }
-  }, [pathname]);
+    });
+
+    return () => unsubscribe();
+  }, [pathname, router]);
 
   if (loading) {
     return (
