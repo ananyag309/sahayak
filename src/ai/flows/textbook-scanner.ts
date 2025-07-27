@@ -3,7 +3,7 @@
 'use server';
 
 /**
- * @fileOverview Textbook Scanner flow that extracts text from images, auto-identifies the language and grade level, and generates curriculum-aligned questions.
+ * @fileOverview Textbook Scanner flow that extracts text from images, identifies the grade level, and generates curriculum-aligned questions in English.
  *
  * - textbookScanner - A function that handles the textbook scanning and question generation process.
  * - TextbookScannerInput - The input type for the textbookScanner function.
@@ -20,6 +20,7 @@ const TextbookScannerInputSchema = z.object({
       "A photo of a textbook, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
     ),
   curriculum: z.string().describe('The educational board, e.g., "NCERT".'),
+  language: z.enum(['en', 'hi', 'mr', 'ta', 'bn', 'te', 'kn', 'gu', 'pa', 'es', 'fr', 'de']).optional().describe('The primary language of the text in the image. This helps with context.'),
 });
 export type TextbookScannerInput = z.infer<typeof TextbookScannerInputSchema>;
 
@@ -49,17 +50,16 @@ const prompt = ai.definePrompt({
   name: 'textbookScannerPrompt',
   input: {schema: TextbookScannerInputSchema},
   output: {schema: TextbookScannerOutputSchema},
-  prompt: `You are a teacher's assistant that helps generate worksheets from textbook images, strictly aligned with a specified curriculum.
+  prompt: `You are a teacher's assistant that helps generate worksheets from textbook images. Your primary task is to create a well-structured worksheet based on the provided image and curriculum.
 
-  Analyze the content from the image provided.
+  Analyze the content from the image. The user has indicated the text is primarily in '{{language}}'.
   
-  1.  **First, determine the primary language of the text** in the image (e.g., Hindi, English, Tamil).
-  2.  **Second, determine the most appropriate grade level** for this content.
-  3.  **Third, generate a comprehensive worksheet.** The ENTIRE output, including learning objectives, sub-topics, and all questions, MUST be in the language you identified in the first step.
+  1.  **Determine the most appropriate grade level** for this content.
+  2.  **Generate a comprehensive worksheet in ENGLISH.** The entire output, including objectives, topics, and all questions, MUST be in English.
   
   The worksheet must be based *only* on the text visible in the image and must align with the learning standards of the provided curriculum.
   
-  **Worksheet Content Requirements (in the identified language):**
+  **Worksheet Content Requirements (in ENGLISH):**
   -   **Learning Objectives:** State the key learning objectives.
   -   **Sub-Topic:** Identify the specific sub-topic from the curriculum.
   -   **Question Types:** Create at least 2-3 questions for each of the following categories if the text allows:
@@ -69,6 +69,7 @@ const prompt = ai.definePrompt({
       -   Match the Column (provide term/definition pairs)
 
   Curriculum: {{{curriculum}}}
+  {{#if language}}Language of text in image: {{{language}}}{{/if}}
   Image:
   {{media url=photoDataUri}}
   `,

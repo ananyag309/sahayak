@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { textbookScanner, type TextbookScannerOutput } from "@/ai/flows/textbook-scanner";
+import { textbookScanner, type TextbookScannerOutput, type TextbookScannerInput } from "@/ai/flows/textbook-scanner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -26,6 +26,7 @@ import jsPDF from 'jspdf';
 const formSchema = z.object({
   photo: z.any().refine(file => file?.length == 1, "Please upload a photo."),
   curriculum: z.string({ required_error: "Please select a curriculum." }),
+  language: z.enum(['en', 'hi', 'mr', 'ta', 'bn', 'te', 'kn', 'gu', 'pa', 'es', 'fr', 'de']).optional(),
 });
 
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -53,6 +54,7 @@ export default function ScannerPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       curriculum: "NCERT",
+      language: "en",
     }
   });
 
@@ -234,6 +236,7 @@ export default function ScannerPage() {
       const input: TextbookScannerInput = { 
         photoDataUri, 
         curriculum: values.curriculum,
+        language: values.language,
       };
       const result = await textbookScanner(input);
       setResults(result);
@@ -247,7 +250,7 @@ export default function ScannerPage() {
             imageURL: imageUrl,
             resultText: JSON.stringify(result),
             grade: result.identifiedGradeLevel,
-            language: "auto-detected",
+            language: values.language,
             curriculum: values.curriculum,
             createdAt: serverTimestamp(),
         });
@@ -315,6 +318,37 @@ export default function ScannerPage() {
                 />
                  <FormField
                   control={form.control}
+                  name="language"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Language of Text in Photo</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a language" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="en">English</SelectItem>
+                          <SelectItem value="hi">Hindi</SelectItem>
+                          <SelectItem value="mr">Marathi</SelectItem>
+                          <SelectItem value="ta">Tamil</SelectItem>
+                          <SelectItem value="bn">Bengali</SelectItem>
+                          <SelectItem value="te">Telugu</SelectItem>
+                          <SelectItem value="kn">Kannada</SelectItem>
+                          <SelectItem value="gu">Gujarati</SelectItem>
+                          <SelectItem value="pa">Punjabi</SelectItem>
+                          <SelectItem value="es">Spanish</SelectItem>
+                          <SelectItem value="fr">French</SelectItem>
+                          <SelectItem value="de">German</SelectItem>
+                        </SelectContent>
+                      </Select>
+                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
                   name="curriculum"
                   render={({ field }) => (
                     <FormItem>
@@ -346,7 +380,7 @@ export default function ScannerPage() {
       <div className="flex flex-col gap-4">
         <div className="screen-only flex flex-col gap-4 flex-1">
             <header>
-                <h2 className="text-2xl font-bold tracking-tight font-headline">Generated Questions</h2>
+                <h2 className="text-2xl font-bold tracking-tight font-headline">Generated Questions (in English)</h2>
                 <p className="text-muted-foreground">Results from the AI will appear here.</p>
             </header>
             <div className="flex-1">
