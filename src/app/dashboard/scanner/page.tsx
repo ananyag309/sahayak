@@ -86,6 +86,9 @@ export default function ScannerPage() {
     try {
         const doc = new jsPDF();
         
+        // Use a standard font that has some unicode support. This avoids the font fetching error.
+        doc.setFont('Helvetica', 'normal');
+
         const pageHeight = doc.internal.pageSize.height;
         const pageWidth = doc.internal.pageSize.width;
         const margin = 15;
@@ -454,5 +457,3 @@ export default function ScannerPage() {
     </div>
   );
 }
-
-    

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/components/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -65,9 +65,9 @@ export default function LibraryPage() {
                 setFolders(userFolders);
 
                 // Fetch diagrams (and other assets in the future)
-                const diagramQuery = query(collection(db, "diagrams"), where("userId", "==", user.uid), orderBy("createdAt", "desc"));
+                const diagramQuery = query(collection(db, "diagrams"), where("userId", "==", user.uid));
                 const diagramSnapshot = await getDocs(diagramQuery);
-                const userDiagrams = diagramSnapshot.docs.map(doc => {
+                let userDiagrams = diagramSnapshot.docs.map(doc => {
                     const data = doc.data();
                     return {
                         id: doc.id,
@@ -80,6 +80,14 @@ export default function LibraryPage() {
                     } as Asset;
                 });
                 // In future, fetch other asset types (lessonPlans, worksheets) and combine them
+                
+                // Sort assets by creation date on the client-side
+                userDiagrams.sort((a, b) => {
+                    const dateA = a.createdAt instanceof Timestamp ? a.createdAt.toDate() : new Date(0);
+                    const dateB = b.createdAt instanceof Timestamp ? b.createdAt.toDate() : new Date(0);
+                    return dateB.getTime() - dateA.getTime();
+                });
+
                 setAssets(userDiagrams);
 
             } catch (error) {
