@@ -20,6 +20,21 @@ Our application is a **modular, intelligent learning assistant** powered by **Go
 
 ---
 
+
+## 📦 Google Technologies Used
+
+| Google Technology                        | Use Case in Our Project                                                                                   |
+|------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| **Google Gemini 1.5 Flash**              | Main model for content generation including: explanations, worksheets, stories, lesson plans, and audio analysis. |
+| **Google Gemini 2.0 Flash Preview (Image Gen)** | Used to generate educational diagrams, flashcard images, and visual story scenes based on prompts.       |
+| **Genkit (by Google)**                   | AI development framework used to define, organize, and manage flows like `aiChatFlow`, `generateLessonPlanFlow`, etc. |
+| **Google ADK Agents**                    | Used to define agentic behavior and orchestrate complex multi-step flows, especially for visual storytelling and flashcards. |
+| **Firebase (Google Cloud)**              | Used for hosting the frontend and deploying our entire app. Easily integrates with Google’s AI stack.     |
+| **Google Cloud Functions (via Firebase Studio)** | Allows us to run server-side Genkit flows and trigger agents on demand.                                  |
+| **Handlebars in Genkit Prompts**         | Enables conditional prompt structure (e.g. `{{#if imageDataUri}}`) to dynamically customize input to Gemini. |
+
+---
+
 ## 🛠️ Tech Stack
 
 | Category            | Tools Used                                                                 |
