@@ -69,7 +69,7 @@ const navItems = [
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, setGuestMode } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const { setTheme } = useTheme();
@@ -106,10 +106,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 
   const handleSignOut = () => {
-    if (auth) {
+    if (user?.uid === 'demo-user') {
+      setGuestMode(false);
+    } else if (auth) {
         auth.signOut();
     } else {
-        // Fallback for when firebase isn't configured but somehow they got here
         router.push('/login');
     }
   };
@@ -224,7 +225,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </div>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut} disabled={!isFirebaseConfigured}>
+              <DropdownMenuItem onClick={handleSignOut} disabled={!isFirebaseConfigured && user.uid !== 'demo-user'}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

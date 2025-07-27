@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, UserCheck } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/components/auth-provider";
 
@@ -33,7 +33,7 @@ export default function LoginPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const { user, loading } = useAuth();
+  const { user, loading, setGuestMode } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -55,14 +55,14 @@ export default function LoginPage() {
     if (error.code && (error.code.includes('auth/configuration-not-found') || error.code.includes('auth/api-key-not-valid'))) {
         description = (
             <span>
-                The authentication service is not enabled for this project. Please{' '}
+                Firebase authentication is not configured correctly. Please{' '}
                 <a
                     href={`https://console.cloud.google.com/apis/library/identitytoolkit.googleapis.com?project=${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="underline font-medium"
                 >
-                    click here to enable the Identity Toolkit API
+                    enable the Identity Toolkit API
                 </a>
                 {' '}and try again. It may take a few minutes to activate.
             </span>
@@ -152,17 +152,9 @@ export default function LoginPage() {
     <Card className="w-full max-w-md">
       <CardHeader>
         <CardTitle className="text-2xl font-bold font-headline">Welcome Back!</CardTitle>
-        <CardDescription>Sign in to access your dashboard.</CardDescription>
+        <CardDescription>Sign in to your account or continue as a guest.</CardDescription>
       </CardHeader>
       <CardContent>
-        {!isFirebaseConfigured && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertTitle>Firebase Not Configured</AlertTitle>
-            <AlertDescription>
-              Authentication is disabled. Please configure your Firebase environment variables to sign in.
-            </AlertDescription>
-          </Alert>
-        )}
         <div className="space-y-4">
             <Button
               variant="outline"
@@ -177,6 +169,14 @@ export default function LoginPage() {
               )}
               Sign In with Google
             </Button>
+            
+            {!isFirebaseConfigured && (
+              <Button variant="secondary" className="w-full" onClick={() => setGuestMode(true)}>
+                  <UserCheck className="mr-2 h-4 w-4" />
+                  Continue as Guest
+              </Button>
+            )}
+
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
@@ -187,6 +187,16 @@ export default function LoginPage() {
                 </span>
               </div>
             </div>
+            
+            {!isFirebaseConfigured && (
+              <Alert variant="destructive">
+                <AlertTitle>Firebase Not Configured</AlertTitle>
+                <AlertDescription>
+                  Real sign-in is disabled. You can continue as a guest.
+                </AlertDescription>
+              </Alert>
+            )}
+
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
