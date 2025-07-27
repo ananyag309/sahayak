@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Folder, Search, FileImage, Layers3, BookText, AlertTriangle, Library as LibraryIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 type Asset = {
     id: string;
@@ -34,6 +35,7 @@ type Folder = {
 
 export default function LibraryPage() {
     const { user } = useAuth();
+    const { toast } = useToast();
     const [assets, setAssets] = useState<Asset[]>([]);
     const [folders, setFolders] = useState<Folder[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -41,10 +43,19 @@ export default function LibraryPage() {
     const [selectedFolderId, setSelectedFolderId] = useState<'all' | 'uncategorized' | string>('all');
 
     useEffect(() => {
-        if (!user || user.uid === 'demo-user') {
+        if (!user) {
             setIsLoading(false);
             return;
         };
+
+        if (user.uid === 'demo-user') {
+            setIsLoading(false);
+            toast({
+                title: "Guest Mode",
+                description: "Your library is disabled in guest mode. Sign up to save your work!",
+            });
+            return;
+        }
 
         const fetchData = async () => {
             setIsLoading(true);
@@ -75,13 +86,17 @@ export default function LibraryPage() {
 
             } catch (error) {
                 console.error("Error fetching library data:", error);
-                // Consider adding a toast notification here
+                toast({
+                    variant: "destructive",
+                    title: "Failed to load library",
+                    description: "Could not retrieve your saved items. Please try again later."
+                })
             } finally {
                 setIsLoading(false);
             }
         };
         fetchData();
-    }, [user]);
+    }, [user, toast]);
 
     const filteredAssets = useMemo(() => {
         return assets
@@ -146,6 +161,22 @@ export default function LibraryPage() {
             </div>
         )
     }
+
+    if (user?.uid === 'demo-user') {
+        return (
+             <div className="col-span-full text-center py-16 rounded-lg border-2 border-dashed">
+                <LibraryIcon className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-4 text-lg font-medium">Library is Disabled in Guest Mode</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Sign up for a free account to save and organize your creations.
+                </p>
+                <Button asChild className="mt-4">
+                    <Link href="/signup">Sign Up Now</Link>
+                </Button>
+            </div>
+        )
+    }
+
 
     return (
         <div className="flex flex-col gap-6">

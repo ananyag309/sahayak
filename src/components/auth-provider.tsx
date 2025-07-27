@@ -58,31 +58,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // If firebase is not configured, don't attempt to authenticate.
+    // The login/signup pages will show a warning and offer guest mode.
     if (!isFirebaseConfigured) {
-      // If firebase is not set up, don't attempt to authenticate.
-      // The login/signup pages will show a warning and offer guest mode.
+      // Check if user is already a guest from a previous interaction
+      if (user?.uid !== 'demo-user') {
+        setUser(null);
+      }
       setLoading(false);
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, (authUser) => {
       // Don't overwrite the guest user if they are navigating
-      if (pathname.startsWith('/dashboard') && user?.uid === 'demo-user') {
+      if (user?.uid === 'demo-user' && authUser) {
+          // A real user logged in, so we can clear the guest user
+      } else if (user?.uid === 'demo-user') {
+          setLoading(false);
           return;
       }
-      setUser(user);
+      
+      setUser(authUser);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [pathname]);
+  }, [user, pathname]);
 
-  // Special case for when firebase isn't configured, but the user is a guest
-  useEffect(() => {
-    if (!isFirebaseConfigured && user?.uid === 'demo-user') {
-        setLoading(false);
-    }
-  }, [user]);
 
   if (loading) {
     return (

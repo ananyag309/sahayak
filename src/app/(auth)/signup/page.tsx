@@ -174,6 +174,13 @@ export default function SignupPage() {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
+            {!isFirebaseConfigured && (
+              <Button variant="secondary" className="w-full" onClick={() => setGuestMode(true)}>
+                  <UserCheck className="mr-2 h-4 w-4" />
+                  Continue as Guest
+              </Button>
+            )}
+
             <Button
               variant="outline"
               className="w-full"
@@ -187,13 +194,6 @@ export default function SignupPage() {
               )}
               Sign Up with Google
             </Button>
-
-            {!isFirebaseConfigured && (
-              <Button variant="secondary" className="w-full" onClick={() => setGuestMode(true)}>
-                  <UserCheck className="mr-2 h-4 w-4" />
-                  Continue as Guest
-              </Button>
-            )}
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
