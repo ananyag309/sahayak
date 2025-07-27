@@ -2,54 +2,65 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { generateVideo, type GenerateVideoInput } from "@/ai/flows/video-generator";
+import { generateVisualStory, type GenerateVisualStoryInput, type GenerateVisualStoryOutput } from "@/ai/flows/video-generator";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Download, AlertTriangle } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2, Wand2, ArrowLeft, ArrowRight } from "lucide-react";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
+} from "@/components/ui/carousel"
 
 const formSchema = z.object({
   topic: z.string().min(3, { message: "Topic must be at least 3 characters." }),
 });
 
-export default function VideoPage() {
+export default function VisualStoryPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [currentTopic, setCurrentTopic] = useState<string | null>(null);
+  const [story, setStory] = useState<GenerateVisualStoryOutput | null>(null);
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>()
+  const [current, setCurrent] = useState(0)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: { topic: "" },
   });
+  
+  useState(() => {
+    if (!carouselApi) return
+    setCurrent(carouselApi.selectedScrollSnap())
+    carouselApi.on("select", () => {
+      setCurrent(carouselApi.selectedScrollSnap())
+    })
+  });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    setVideoUrl(null);
-    setCurrentTopic(values.topic);
+    setStory(null);
 
     try {
-      const input: GenerateVideoInput = { topic: values.topic };
-      const result = await generateVideo(input);
-      setVideoUrl(result.videoDataUri);
-      
-      toast({ title: "Video generated successfully!" });
+      const input: GenerateVisualStoryInput = { topic: values.topic };
+      const result = await generateVisualStory(input);
+      setStory(result);
+      toast({ title: "Visual story generated successfully!" });
     } catch (error: any) {
-      console.error("Video Generation Error:", error);
-      let description = "The AI was unable to create a video. This might be due to high demand or a problem with the model. Please try again later.";
-      if (typeof error.message === 'string' && error.message.includes("billing")) {
-        description = "This feature requires Google Cloud Platform billing to be enabled for your project. Please enable billing and try again.";
-      }
+      console.error("Visual Story Generation Error:", error);
       toast({
         variant: "destructive",
-        title: "Video Generation Failed",
-        description: description,
+        title: "Story Generation Failed",
+        description: error.message || "The AI was unable to create a story. Please try again.",
       });
     } finally {
       setIsLoading(false);
@@ -61,21 +72,14 @@ export default function VideoPage() {
       <div className="grid lg:grid-cols-2 gap-8">
           <div>
               <header className="mb-4">
-                  <h1 className="text-3xl font-bold tracking-tight font-headline">Video Generator</h1>
-                  <p className="text-muted-foreground">Enter a topic to generate a short, educational video using AI.</p>
+                  <h1 className="text-3xl font-bold tracking-tight font-headline">Visual Story Generator</h1>
+                  <p className="text-muted-foreground">Turn any topic into a simple, illustrated story for your students.</p>
               </header>
               <Card>
                   <CardHeader>
-                      <CardTitle>Create Video</CardTitle>
+                      <CardTitle>Create Story</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                      <Alert variant="destructive">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Billing Required & Experimental</AlertTitle>
-                        <AlertDescription>
-                            The Veo model requires that you have an active <strong>Google Cloud Platform billing account</strong>. Generation can also take over a minute and may fail unexpectedly.
-                        </AlertDescription>
-                      </Alert>
+                  <CardContent>
                       <Form {...form}>
                           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                               <FormField
@@ -92,7 +96,7 @@ export default function VideoPage() {
                               )}
                               />
                               <Button type="submit" className="w-full" disabled={isLoading}>
-                                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Generate Video"}
+                                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <><Wand2 className="mr-2 h-4 w-4" />Generate Story</>}
                               </Button>
                           </form>
                       </Form>
@@ -101,33 +105,43 @@ export default function VideoPage() {
           </div>
           <div>
               <header className="mb-4">
-                  <h2 className="text-2xl font-bold tracking-tight font-headline">Generated Video</h2>
-                  <p className="text-muted-foreground">Your video will appear here.</p>
+                  <h2 className="text-2xl font-bold tracking-tight font-headline">Generated Story</h2>
+                  <p className="text-muted-foreground">Your story will appear here as an interactive slideshow.</p>
               </header>
-              <Card className="min-h-[400px] flex items-center justify-center aspect-video">
+              <Card className="min-h-[400px] flex items-center justify-center">
                   {isLoading && (
                       <div className="flex flex-col items-center gap-4 text-center p-4">
                           <Loader2 className="h-8 w-8 animate-spin text-primary"/>
-                          <p className="text-muted-foreground">Generating your video...<br/>This can take over a minute.</p>
+                          <p className="text-muted-foreground">Generating your story...<br/>This can take up to a minute.</p>
                       </div>
                   )}
-                  {!isLoading && videoUrl && (
+                  {!isLoading && story && (
                       <CardContent className="p-6 w-full h-full flex flex-col justify-center">
-                          <div className="w-full rounded-lg overflow-hidden border">
-                              <video src={videoUrl} controls autoPlay muted loop className="w-full h-full aspect-video">
-                                  Your browser does not support the video tag.
-                              </video>
-                          </div>
-                           <Button className="w-full mt-4" asChild>
-                                <a href={videoUrl} download={`video-${currentTopic?.replace(/\s+/g, '-')}.mp4`}>
-                                    <Download className="mr-2 h-4 w-4"/> Download Video
-                                </a>
-                            </Button>
+                        <h3 className="text-xl font-bold text-center mb-4">{story.title}</h3>
+                          <Carousel setApi={setCarouselApi} className="w-full">
+                            <CarouselContent>
+                              {story.scenes.map((scene, index) => (
+                                <CarouselItem key={index}>
+                                  <div className="flex flex-col gap-4 items-center">
+                                    <div className="relative w-full aspect-video rounded-lg overflow-hidden border">
+                                      <Image src={scene.imageUrl} alt={scene.imagePrompt} layout="fill" objectFit="cover" />
+                                    </div>
+                                    <p className="text-center text-muted-foreground h-20">{scene.narration}</p>
+                                  </div>
+                                </CarouselItem>
+                              ))}
+                            </CarouselContent>
+                            <CarouselPrevious />
+                            <CarouselNext />
+                          </Carousel>
+                          <div className="py-2 text-center text-sm text-muted-foreground">
+                            Slide {current + 1} of {story.scenes.length}
+                         </div>
                       </CardContent>
                   )}
-                  {!isLoading && !videoUrl && (
+                  {!isLoading && !story && (
                       <p className="text-muted-foreground text-center p-4">
-                          Enter a topic and click "Generate" to see your video.
+                          Enter a topic and click "Generate" to create a visual story.
                       </p>
                   )}
               </Card>

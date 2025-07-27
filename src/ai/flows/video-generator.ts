@@ -2,93 +2,114 @@
 'use server';
 
 /**
- * @fileOverview A video generator flow using Google's Veo model.
+ * @fileOverview A visual story generator that creates a series of scenes (image and narration) for a topic.
  *
- * - generateVideo - Generates a video from a text prompt.
- * - GenerateVideoInput - The input type for the generateVideo function.
- * - GenerateVideoOutput - The return type for the generateVideo function.
+ * - generateVisualStory - Generates a visual story.
+ * - GenerateVisualStoryInput - The input type for the function.
+ * - GenerateVisualStoryOutput - The return type for the function.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { MediaPart } from 'genkit';
-import { Readable } from 'stream';
 
-const GenerateVideoInputSchema = z.object({
-  topic: z.string().describe('The topic or concept for which to generate a video.'),
-  durationSeconds: z.number().min(3).max(8).default(5).describe('The desired duration of the video in seconds.'),
+// Define the schema for a single scene (narration and an image prompt)
+const SceneSchema = z.object({
+  narration: z.string().describe("The text to be read for this scene. Should be one or two simple sentences."),
+  imagePrompt: z.string().describe("A simple, clear, child-friendly cartoon style prompt to generate an image for this scene. e.g., 'A happy bee flying over a field of flowers'."),
 });
-export type GenerateVideoInput = z.infer<typeof GenerateVideoInputSchema>;
 
-const GenerateVideoOutputSchema = z.object({
-  videoDataUri: z.string().describe('The generated video as a data URI.'),
+// Define the schema for the main story structure
+const StoryPlanSchema = z.object({
+  title: z.string().describe("A short, catchy title for the story."),
+  scenes: z.array(SceneSchema).min(4).max(6).describe("An array of 4 to 6 scenes that tell the story."),
 });
-export type GenerateVideoOutput = z.infer<typeof GenerateVideoOutputSchema>;
 
-export async function generateVideo(input: GenerateVideoInput): Promise<GenerateVideoOutput> {
-  return generateVideoFlow(input);
+// Input schema for the main flow
+const GenerateVisualStoryInputSchema = z.object({
+  topic: z.string().describe('The topic or concept for which to generate a visual story.'),
+});
+export type GenerateVisualStoryInput = z.infer<typeof GenerateVisualStoryInputSchema>;
+
+
+// Define the schema for a scene that now includes the generated image URL
+const FinalSceneSchema = SceneSchema.extend({
+    imageUrl: z.string().describe('The data URI of the generated image for this scene.'),
+});
+
+// Final output schema for the entire flow
+const GenerateVisualStoryOutputSchema = z.object({
+  title: z.string(),
+  scenes: z.array(FinalSceneSchema),
+});
+export type GenerateVisualStoryOutput = z.infer<typeof GenerateVisualStoryOutputSchema>;
+
+
+// Main exported function that the UI will call
+export async function generateVisualStory(input: GenerateVisualStoryInput): Promise<GenerateVisualStoryOutput> {
+  return generateVisualStoryFlow(input);
 }
 
-// Helper function to download the video from the GCS URL and convert it to a data URI
-async function videoToDataUri(videoPart: MediaPart): Promise<string> {
-    const fetch = (await import('node-fetch')).default;
-    
-    if (!videoPart?.media?.url) {
-        throw new Error('No video URL found in the media part.');
+
+// Flow 1: Generate the story plan (text-only)
+const storyPlannerPrompt = ai.definePrompt({
+    name: 'visualStoryPlannerPrompt',
+    input: { schema: GenerateVisualStoryInputSchema },
+    output: { schema: StoryPlanSchema },
+    prompt: `You are an expert storyteller for children. Create a short, simple, and engaging visual story to explain the given topic. The story should be broken down into 4 to 6 scenes. For each scene, provide a simple narration and a prompt to generate a child-friendly cartoon image.
+
+    Topic: {{{topic}}}
+    `,
+});
+
+// Flow 2: Generate a single image from a prompt
+const generateImageFlow = ai.defineFlow(
+    {
+        name: 'generateVisualStoryImageFlow',
+        inputSchema: z.string(),
+        outputSchema: z.string(),
+    },
+    async (imagePrompt) => {
+        const { media } = await ai.generate({
+            model: 'googleai/gemini-2.0-flash-preview-image-generation',
+            prompt: `A simple, clear, child-friendly cartoon icon of: ${imagePrompt}`,
+            config: { responseModalities: ['TEXT', 'IMAGE'] },
+        });
+
+        if (!media?.url) {
+            throw new Error('Image generation failed to return a data URL.');
+        }
+
+        return media.url;
     }
-    
-    // The URL returned by Veo needs the API key to be accessed.
-    const videoUrl = `${videoPart.media.url}&key=${process.env.GOOGLE_API_KEY}`;
-    
-    const response = await fetch(videoUrl);
-    if (!response.ok || !response.body) {
-        throw new Error(`Failed to download video: ${response.statusText}`);
-    }
+);
 
-    const videoBuffer = await response.buffer();
-    const base64Video = videoBuffer.toString('base64');
-    const contentType = videoPart.media.contentType || 'video/mp4';
-
-    return `data:${contentType};base64,${base64Video}`;
-}
-
-const generateVideoFlow = ai.defineFlow(
+// Main flow that orchestrates the process
+const generateVisualStoryFlow = ai.defineFlow(
   {
-    name: 'generateVideoFlow',
-    inputSchema: GenerateVideoInputSchema,
-    outputSchema: GenerateVideoOutputSchema,
+    name: 'generateVisualStoryFlow',
+    inputSchema: GenerateVisualStoryInputSchema,
+    outputSchema: GenerateVisualStoryOutputSchema,
   },
   async (input) => {
-    let { operation } = await ai.generate({
-      model: 'googleai/veo-2.0-generate-001',
-      prompt: `Generate a high-quality, educational, and visually engaging video that explains the concept of: "${input.topic}". The video should be suitable for students.`,
-      config: {
-        durationSeconds: input.durationSeconds,
-        aspectRatio: '16:9',
-      },
-    });
-
-    if (!operation) {
-      throw new Error('Expected the model to return an operation for video generation.');
+    // 1. Generate the text-based story plan
+    const { output: storyPlan } = await storyPlannerPrompt(input);
+    if (!storyPlan) {
+        throw new Error('Failed to generate story plan.');
     }
 
-    // Poll for the result. This can take a while (up to a minute or more).
-    while (!operation.done) {
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds before checking again
-      operation = await ai.checkOperation(operation);
-    }
+    // 2. Generate an image for each scene in parallel
+    const imagePromises = storyPlan.scenes.map(scene => generateImageFlow(scene.imagePrompt));
+    const imageUrls = await Promise.all(imagePromises);
 
-    if (operation.error) {
-      throw new Error(`Video generation failed: ${operation.error.message}`);
-    }
+    // 3. Combine the story plan with the generated image URLs
+    const finalScenes = storyPlan.scenes.map((scene, index) => ({
+        ...scene,
+        imageUrl: imageUrls[index],
+    }));
 
-    const video = operation.output?.message?.content.find((p) => !!p.media);
-    if (!video) {
-      throw new Error('Failed to find the generated video in the operation result.');
-    }
-    
-    const videoDataUri = await videoToDataUri(video);
-
-    return { videoDataUri };
+    return {
+        title: storyPlan.title,
+        scenes: finalScenes,
+    };
   }
 );

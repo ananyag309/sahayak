@@ -34,8 +34,8 @@ const tools = [
       icon: <LayoutTemplate className="h-8 w-8 text-primary" />,
     },
     {
-      title: 'Video Generator',
-      description: 'Generate short videos from a topic.',
+      title: 'Visual Story',
+      description: 'Generate a slideshow story from a topic.',
       href: '/dashboard/video',
       icon: <Video className="h-8 w-8 text-primary" />,
     },
