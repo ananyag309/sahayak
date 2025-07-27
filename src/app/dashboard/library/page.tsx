@@ -56,10 +56,12 @@ export default function LibraryPage() {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                // Fetch folders
-                const folderQuery = query(collection(db, "folders"), where("userId", "==", user.uid), orderBy("name"));
+                // Fetch folders - remove orderBy to prevent index error and sort on client
+                const folderQuery = query(collection(db, "folders"), where("userId", "==", user.uid));
                 const folderSnapshot = await getDocs(folderQuery);
                 const userFolders = folderSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Folder));
+                // Sort folders on the client-side
+                userFolders.sort((a, b) => a.name.localeCompare(b.name));
                 setFolders(userFolders);
 
                 // Fetch diagrams (and other assets in the future)
