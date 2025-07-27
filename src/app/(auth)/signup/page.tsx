@@ -55,12 +55,14 @@ export default function SignupPage() {
   }, [user, loading, router]);
 
   const handleAuthError = (error: any) => {
+    let title = "Authentication Failed";
     let description: React.ReactNode = "An unexpected error occurred. Please try again.";
     
     if (error.code && (error.code.includes('auth/configuration-not-found') || error.code.includes('auth/api-key-not-valid'))) {
+        title = "Firebase Not Configured";
         description = (
             <span>
-                Firebase authentication is not configured correctly. Please{' '}
+                Please provide your Firebase credentials in the .env file and{' '}
                 <a
                     href={`https://console.cloud.google.com/apis/library/identitytoolkit.googleapis.com?project=${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}`}
                     target="_blank"
@@ -69,7 +71,7 @@ export default function SignupPage() {
                 >
                     enable the Identity Toolkit API
                 </a>
-                {' '}and try again. It may take a few minutes to activate.
+                . You can also continue as a guest.
             </span>
         );
     } else if (error.code === 'auth/operation-not-allowed') {
@@ -94,18 +96,14 @@ export default function SignupPage() {
 
     toast({
         variant: "destructive",
-        title: "Authentication Failed",
-        description,
+        title: title,
+        description: description,
     });
   }
 
   const handleGoogleSignIn = async () => {
     if (!isFirebaseConfigured || !auth || !db) {
-      toast({
-        variant: "destructive",
-        title: "Firebase Not Configured",
-        description: "Google Sign-In cannot proceed without Firebase credentials.",
-      });
+      handleAuthError({ code: 'auth/configuration-not-found' });
       return;
     }
     setIsGoogleLoading(true);
@@ -135,16 +133,11 @@ export default function SignupPage() {
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true);
     if (!isFirebaseConfigured || !auth || !db) {
-       toast({
-        variant: "destructive",
-        title: "Firebase Not Configured",
-        description: "Please provide Firebase credentials in your .env file.",
-      });
-      setIsLoading(false);
-      return;
+       handleAuthError({ code: 'auth/configuration-not-found' });
+       return;
     }
+    setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
@@ -179,11 +172,22 @@ export default function SignupPage() {
                 Continue as Guest
             </Button>
 
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">
+                  Or sign up with
+                </span>
+              </div>
+            </div>
+
             <Button
               variant="outline"
               className="w-full"
               onClick={handleGoogleSignIn}
-              disabled={isLoading || isGoogleLoading || !isFirebaseConfigured}
+              disabled={isLoading || isGoogleLoading}
             >
               {isGoogleLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -203,15 +207,6 @@ export default function SignupPage() {
                 </span>
               </div>
             </div>
-
-            {!isFirebaseConfigured && (
-              <Alert variant="destructive">
-                  <AlertTitle>Firebase Not Configured</AlertTitle>
-                  <AlertDescription>
-                    Real sign-up is disabled. You can continue as a guest.
-                  </AlertDescription>
-              </Alert>
-            )}
             
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -222,7 +217,7 @@ export default function SignupPage() {
                     <FormItem>
                       <FormLabel>Full Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="John Doe" {...field} disabled={!isFirebaseConfigured || isLoading || isGoogleLoading} />
+                        <Input placeholder="John Doe" {...field} disabled={isLoading || isGoogleLoading} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -235,7 +230,7 @@ export default function SignupPage() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input placeholder="name@example.com" {...field} disabled={!isFirebaseConfigured || isLoading || isGoogleLoading} />
+                        <Input placeholder="name@example.com" {...field} disabled={isLoading || isGoogleLoading} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -248,7 +243,7 @@ export default function SignupPage() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} disabled={!isFirebaseConfigured || isLoading || isGoogleLoading} />
+                        <Input type="password" placeholder="••••••••" {...field} disabled={isLoading || isGoogleLoading} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -260,7 +255,7 @@ export default function SignupPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Preferred Language</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!isFirebaseConfigured || isLoading || isGoogleLoading}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading || isGoogleLoading}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a language" />
@@ -285,7 +280,7 @@ export default function SignupPage() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading || !isFirebaseConfigured}>
+                <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Create Account
                 </Button>

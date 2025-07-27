@@ -32,7 +32,7 @@ import {
   SidebarInset,
 } from "@/components/ui/sidebar";
 import { Logo } from "@/components/logo";
-import { auth, isFirebaseConfigured } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import {
   BookOpen,
   BrainCircuit,
@@ -117,8 +117,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   if (loading || !user) {
-    // This shows a skeleton loader while the auth state is being determined.
-    // auth-provider also has a loader, but this one is specific to the dashboard layout.
     return (
       <div className="flex h-screen w-full">
         <div className="w-64 border-r p-4 space-y-4 hidden md:block">
@@ -140,7 +138,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
   
   const getInitials = (name: string | null | undefined) => {
-    if (!name) return "U";
+    if (!name) return "G";
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
 

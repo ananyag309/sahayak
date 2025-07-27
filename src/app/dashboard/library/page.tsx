@@ -50,10 +50,6 @@ export default function LibraryPage() {
 
         if (user.uid === 'demo-user') {
             setIsLoading(false);
-            toast({
-                title: "Guest Mode",
-                description: "Your library is disabled in guest mode. Sign up to save your work!",
-            });
             return;
         }
 

@@ -44,7 +44,6 @@ export const useAuth = () => useContext(AuthContext);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const pathname = usePathname();
   const router = useRouter();
 
   const setGuestMode = (isGuest: boolean) => {
@@ -61,19 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // If firebase is not configured, don't attempt to authenticate.
     // The login/signup pages will show a warning and offer guest mode.
     if (!isFirebaseConfigured) {
-      // Check if user is already a guest from a previous interaction
-      if (user?.uid !== 'demo-user') {
-        setUser(null);
-      }
       setLoading(false);
       return;
     }
 
     const unsubscribe = onAuthStateChanged(auth, (authUser) => {
-      // Don't overwrite the guest user if they are navigating
-      if (user?.uid === 'demo-user' && authUser) {
-          // A real user logged in, so we can clear the guest user
-      } else if (user?.uid === 'demo-user') {
+      // If a guest session is active, don't replace it with a null authUser
+      // This can happen on initial load before firebase auth state is resolved.
+      if (user?.uid === 'demo-user' && !authUser) {
           setLoading(false);
           return;
       }
