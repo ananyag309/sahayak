@@ -42,10 +42,14 @@ export default function VideoPage() {
       toast({ title: "Video generated successfully!" });
     } catch (error: any) {
       console.error("Video Generation Error:", error);
+      let description = "The AI was unable to create a video. This might be due to high demand or a problem with the model. Please try again later.";
+      if (typeof error.message === 'string' && error.message.includes("billing")) {
+        description = "This feature requires Google Cloud Platform billing to be enabled for your project. Please enable billing and try again.";
+      }
       toast({
         variant: "destructive",
         title: "Video Generation Failed",
-        description: error.message || "The AI was unable to create a video. This might be due to high demand or a problem with the model. Please try again later.",
+        description: description,
       });
     } finally {
       setIsLoading(false);
@@ -65,11 +69,11 @@ export default function VideoPage() {
                       <CardTitle>Create Video</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                      <Alert>
+                      <Alert variant="destructive">
                         <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Experimental Feature</AlertTitle>
+                        <AlertTitle>Billing Required & Experimental</AlertTitle>
                         <AlertDescription>
-                            Video generation is a new technology. It can take over a minute to complete and may occasionally fail due to high demand.
+                            The Veo model requires that you have an active <strong>Google Cloud Platform billing account</strong>. Generation can also take over a minute and may fail unexpectedly.
                         </AlertDescription>
                       </Alert>
                       <Form {...form}>
